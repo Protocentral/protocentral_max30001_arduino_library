@@ -48,8 +48,6 @@ If you have bought the breakout the connection with the Arduino board is as foll
 
 If you have correctly installed the libraries, the example sketeches should now be available from within Arduino.
 
-[Download the Arduino Sketch here for this board here.](https://github.com/Protocentral/protocentral_max30001/releases/download/v0.1/protocentral_max30001_arduino.zip)
-
 Open up your Arduino IDE and run the Arudino sketch (.ino) file in the archive that you downloaded. Your Arduino should now be programmed to read the ecg data and sending over the USB-UART.  
 
 # Using the ProtoCentral OpenView GUI
@@ -62,8 +60,7 @@ Java 8 is required on all platforms for running the processing-based GUI applica
 
 You can download and install [ProtoCentral OpenView from here](https://github.com/Protocentral/protocentral_openview).
 
-Once you have opened OpenView, make sure to select "MAX30001 breakout" under the "Board" dropdown. 
-
+Once you have opened OpenView, make sure to select "MAX30001 breakout" under the "Select Board" dropdown. 
 
 # Connecting the ECG Electrodes
 
