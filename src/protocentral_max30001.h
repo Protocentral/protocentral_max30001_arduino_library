@@ -83,6 +83,8 @@ private:
 #define CNFG_EMUX 0x14
 #define CNFG_ECG 0x15
 
+#define CNFG_BIOZ_LC  0x1A
+
 #define CNFG_BMUX 0x17
 #define CNFG_BIOZ 0x18
 

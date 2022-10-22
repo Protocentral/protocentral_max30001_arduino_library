@@ -172,6 +172,10 @@ void MAX30001::BeginECGBioZ()
 
     _max30001RegWrite(CNFG_BIOZ, 0x201433);  // BioZ Rate: 64 SPS | Current generator: 32 uA
     delay(100);
+
+    //Set MAX30001G specific BioZ LC
+    _max30001RegWrite(CNFG_BIOZ_LC, 0x800000); // Turn OFF low current mode
+
     _max30001RegWrite(CNFG_BMUX,0x000040);  // Pins connected internally to BioZ channels
     delay(100);
 
