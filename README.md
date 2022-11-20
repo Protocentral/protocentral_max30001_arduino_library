@@ -1,4 +1,5 @@
 # ProtoCentral MAX30001 ECG and Bio-Impedance Breakout Board
+[![Compile Examples](https://github.com/Protocentral/protocentral_max30001_arduino_library/workflows/Compile%20Examples/badge.svg)](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions?workflow=Compile+Examples)
 
 ![ProtoCentral MAX30001 Single-channel ECG breakout](assets/max30001_brk.jpg)
 
