@@ -38,6 +38,8 @@
 #include<SPI.h>
 #include "protocentral_max30001.h"
 
+#define MAX30001_SPI_SPEED 1000000
+
 MAX30001::MAX30001(int cs_pin)
 {
     _cs_pin=cs_pin;
@@ -51,7 +53,9 @@ void MAX30001::_max30001RegWrite (unsigned char WRITE_ADDRESS, unsigned long dat
     //Combine the register address and the command into one byte:
     byte dataToSend = (WRITE_ADDRESS<<1) | WREG;
 
-   digitalWrite(_cs_pin, LOW);
+    SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
+
+    digitalWrite(_cs_pin, LOW);
 
     delay(2);
     SPI.transfer(dataToSend);
@@ -61,11 +65,15 @@ void MAX30001::_max30001RegWrite (unsigned char WRITE_ADDRESS, unsigned long dat
     delay(2);
 
     digitalWrite(_cs_pin, HIGH);
+
+    SPI.endTransaction();
 }
 
 void MAX30001::_max30001RegRead(uint8_t Reg_address, uint8_t * buff)
 {
     uint8_t spiTxBuff;
+
+    SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
 
     digitalWrite(_cs_pin, LOW);
 
@@ -78,6 +86,8 @@ void MAX30001::_max30001RegRead(uint8_t Reg_address, uint8_t * buff)
     }
 
     digitalWrite(_cs_pin, HIGH);
+    
+    SPI.endTransaction();
 }
 
 void MAX30001::_max30001SwReset(void)
@@ -93,20 +103,9 @@ void MAX30001::_max30001Synch(void)
 
 bool MAX30001::max30001ReadInfo(void)
 {
-    uint8_t spiTxBuff;
     uint8_t readBuff[4] ;
 
-    digitalWrite(_cs_pin, LOW);
-
-    spiTxBuff = (INFO << 1 ) | RREG;
-    SPI.transfer(spiTxBuff); //Send register location
-
-    for ( int i = 0; i < 3; i++)
-    {
-       readBuff[i] = SPI.transfer(0xff);
-    }
-
-    digitalWrite(_cs_pin, HIGH);
+    _max30001RegRead(INFO, readBuff);
 
     if((readBuff[0]&0xf0) == 0x50 ){
       Serial.print("MAX30001 Detected. Rev ID:  ");
@@ -125,6 +124,9 @@ bool MAX30001::max30001ReadInfo(void)
 void MAX30001::_max30001ReadData(int num_samples, uint8_t * readBuffer)
 {
     uint8_t spiTxBuff;
+
+    SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
+
     digitalWrite(_cs_pin, LOW);
 
     spiTxBuff = (ECG_FIFO_BURST<<1 ) | RREG;
@@ -136,6 +138,8 @@ void MAX30001::_max30001ReadData(int num_samples, uint8_t * readBuffer)
     }
 
     digitalWrite(_cs_pin, HIGH);
+
+    SPI.endTransaction();
 }
 
 void MAX30001::BeginECGOnly()
