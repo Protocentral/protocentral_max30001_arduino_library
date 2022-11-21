@@ -96,12 +96,11 @@ void sendData(signed long ecg_sample, signed long bioz_sample, bool _bioZSkipSam
 
 bool BioZSkipSample = false;
 
-void setup() {
+void setup() 
+{
   Serial.begin(57600);  // Serial begin
 
-  //SPI.begin();
-  //SPI.setBitOrder(MSBFIRST);
-  //SPI.setDataMode(SPI_MODE0);
+  SPI.begin();
 
   bool ret = max30001.max30001ReadInfo();
   if (ret) {
