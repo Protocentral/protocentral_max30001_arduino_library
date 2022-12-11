@@ -68,7 +68,6 @@ private:
 #define WREG 0x00
 #define RREG 0x01
 
-#define NO_OP 0x00
 #define STATUS 0x01
 #define EN_INT 0x02
 #define EN_INT2 0x03
