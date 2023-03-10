@@ -293,3 +293,12 @@ void MAX30001::getHRandRR(void)
     unsigned int RR = (unsigned int)rtor* (7.8125) ;  //8ms
     RRinterval = RR;
 }
+
+void MAX30001::setInterrupts(void)
+{
+    
+    _max30001RegWrite(EN_INT, 0x000401);
+    delay(100);
+    //_max30001Synch();
+    //delay(100);
+}
