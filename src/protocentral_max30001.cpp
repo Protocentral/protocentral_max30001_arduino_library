@@ -69,6 +69,31 @@ void MAX30001::_max30001RegWrite (unsigned char WRITE_ADDRESS, unsigned long dat
     SPI.endTransaction();
 }
 
+void MAX30001::_max30001RegRead24(uint8_t Reg_address, uint32_t *read_data)
+{
+    uint8_t spiTxBuff;
+
+    uint8_t buff[4];
+
+    SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
+
+    digitalWrite(_cs_pin, LOW);
+
+    spiTxBuff = (Reg_address<<1 ) | RREG;
+    SPI.transfer(spiTxBuff); //Send register location
+
+    for ( int i = 0; i < 3; i++)
+    {
+       buff[i] = SPI.transfer(0xff);
+    }
+
+    digitalWrite(_cs_pin, HIGH);
+
+    *read_data = (buff[0]<<16) | (buff[1]<<8) | buff[2];
+    
+    SPI.endTransaction();
+}
+
 void MAX30001::_max30001RegRead(uint8_t Reg_address, uint8_t * buff)
 {
     uint8_t spiTxBuff;
@@ -183,6 +208,8 @@ void MAX30001::BeginECGBioZ()
     _max30001RegWrite(CNFG_BMUX,0x000040);  // Pins connected internally to BioZ channels
     delay(100);
 
+    setInterrupts(EN_EINT|0x01); // Enable ECG Interrupts
+
     //_max30001RegWrite(CNFG_RTOR1,0x3fc600);
     _max30001Synch();
     delay(100);
@@ -294,11 +321,33 @@ void MAX30001::getHRandRR(void)
     RRinterval = RR;
 }
 
-void MAX30001::setInterrupts(void)
+void MAX30001::setInterrupts(uint32_t interrupts_to_set)
 {
-    
-    _max30001RegWrite(EN_INT, 0x000401);
+    _max30001RegWrite(EN_INT, interrupts_to_set);
     delay(100);
     //_max30001Synch();
     //delay(100);
+}
+
+void MAX30001::readStatus(void) {
+    /*uint8_t regReadBuff[4];
+    _max30001RegRead(STATUS, regReadBuff);
+    unsigned long status = (unsigned long) (regReadBuff[0]);
+    status = status <<24;
+    unsigned long status1 = (unsigned long) (regReadBuff[1]);
+    status1 = status1 <<16;
+    unsigned long status2 = (unsigned long) (regReadBuff[2]);
+    status2 = status2 <<8;
+    unsigned long status3 = (unsigned long) (regReadBuff[3]);
+    status = (unsigned long) (status | status1 | status2 | status3);
+    Serial.print("Status: ");
+    Serial.println(status, HEX);
+    */
+
+    _max30001RegRead24(STATUS, &global_status.all);
+
+    Serial.print("Status: ");
+    Serial.println(global_status.all, HEX);
+
+
 }

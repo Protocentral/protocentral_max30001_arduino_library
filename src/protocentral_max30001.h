@@ -1,4 +1,4 @@
-// ______          _        _____            _             _ 
+// ______          _        _____            _             _
 // | ___ \        | |      /  __ \          | |           | |
 // | |_/ / __ ___ | |_ ___ | /  \/ ___ _ __ | |_ _ __ __ _| |
 // |  __/ '__/ _ \| __/ _ \| |    / _ \ '_ \| __| '__/ _` | |
@@ -28,6 +28,48 @@
 
 #include <Arduino.h>
 
+typedef union max30001_status_reg
+{
+  uint32_t all;
+
+  struct
+  {
+    uint32_t loff_nl : 1;
+    uint32_t loff_nh : 1;
+    uint32_t loff_pl : 1;
+    uint32_t loff_ph : 1;
+
+    uint32_t bcgmn : 1;
+    uint32_t bcgmp : 1;
+    uint32_t reserved1 : 1;
+    uint32_t reserved2 : 1;
+
+    uint32_t pllint : 1;
+    uint32_t samp : 1;
+    uint32_t rrint : 1;
+    uint32_t lonint : 1;
+
+    uint32_t pedge : 1;
+    uint32_t povf : 1;
+    uint32_t pint : 1;
+    uint32_t bcgmon : 1;
+
+    uint32_t bundr : 1;
+    uint32_t bover : 1;
+    uint32_t bovf : 1;
+    uint32_t bint : 1;
+
+    uint32_t dcloffint : 1;
+    uint32_t fstint : 1;
+    uint32_t eovf : 1;
+    uint32_t eint : 1;
+
+    uint32_t reserved : 8;
+
+  } bit;
+
+} max30001_status_t;
+
 typedef enum
 {
   SAMPLINGRATE_128 = 128,
@@ -47,19 +89,27 @@ public:
   void BeginECGOnly();
   void BeginECGBioZ();
   void BeginRtoRMode();
-  
+
   signed long getECGSamples(void);
   signed long getBioZSamples(void);
   void getHRandRR(void);
 
   bool max30001ReadInfo(void);
   void max30001SetsamplingRate(uint16_t samplingRate);
- 
+
+  void setInterrupts(uint32_t interrupts);
+  void readStatus(void);
+
+  max30001_status_t global_status;
+
 private:
-  void _max30001ReadData(int num_samples, uint8_t *readBuffer);
+  void
+  _max30001ReadData(int num_samples, uint8_t *readBuffer);
   void _max30001Synch(void);
   void _max30001RegWrite(unsigned char WRITE_ADDRESS, unsigned long data);
   void _max30001RegRead(uint8_t Reg_address, uint8_t *buff);
+  void _max30001RegRead24(uint8_t Reg_address, uint32_t *read_data);
+
   void _max30001SwReset(void);
 
   int _cs_pin;
@@ -82,7 +132,7 @@ private:
 #define CNFG_EMUX 0x14
 #define CNFG_ECG 0x15
 
-#define CNFG_BIOZ_LC  0x1A
+#define CNFG_BIOZ_LC 0x1A
 
 #define CNFG_BMUX 0x17
 #define CNFG_BIOZ 0x18
@@ -102,28 +152,31 @@ private:
 #define CLK_PIN 6
 #define RTOR_INTR_MASK 0x04
 
-enum EN_INT_bits {
-    EN_EINT=0x800000,
-    EN_ECG_FIFO_OVF=0x400000,
-    EN_ECG_FAST_REC=0x200000,
-    EN_DCLOFFINT=0x100000,
-    EN_BIOZ_FIFO_INT=0x80000,
-    EN_BIOZ_FIFO_OVF=0x40000,
-    EN_BIOZ_OVER_RANGE=0x20000,
-    EN_BIOZ_UNDER_RANGE=0x10000,
-    EN_BIOZ_CG_MON=0x8000,
+enum EN_INT_bits
+{
+  EN_EINT = 0x800000,
+  EN_ECG_FIFO_OVF = 0x400000,
+  EN_ECG_FAST_REC = 0x200000,
+  EN_DCLOFFINT = 0x100000,
+  EN_BIOZ_FIFO_INT = 0x80000,
+  EN_BIOZ_FIFO_OVF = 0x40000,
+  EN_BIOZ_OVER_RANGE = 0x20000,
+  EN_BIOZ_UNDER_RANGE = 0x10000,
+  EN_BIOZ_CG_MON = 0x8000,
 
-    EN_LONINT=0x800,
-    EN_RRINT=0x400,
-    EN_SAMP=0x200,
-    EN_PLLINT=0x100,
+  EN_LONINT = 0x800,
+  EN_RRINT = 0x400,
+  EN_SAMP = 0x200,
+  EN_PLLINT = 0x100,
 
-    EN_BCGMP=0x20,
-    EN_BCGMN=0x10,
-    EN_LDOFF_PH=0x8,
-    EN_LDOFF_PL=0x4,
-    EN_LDOFF_NH=0x2,
-    EN_LDOFF_NL=0x1
+  EN_BCGMP = 0x20,
+  EN_BCGMN = 0x10,
+  EN_LDOFF_PH = 0x8,
+  EN_LDOFF_PL = 0x4,
+  EN_LDOFF_NH = 0x2,
+  EN_LDOFF_NL = 0x1
 };
+
+
 
 #endif
