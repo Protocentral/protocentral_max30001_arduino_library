@@ -146,9 +146,12 @@ void intr_cb() {
   //Read the interrupt status register
  // max30001.readStatus();
   //Serial.println("I");
-  max30001.readStatus();
-  ecg_data = max30001.getECGSamples();
-  bioz_data = max30001.getBioZSamples();
+  //max30001.readStatus();
+  //ecg_data = max30001.getECGSamples();
+  //bioz_data = max30001.getBioZSamples();
+  max30001.max30001ServiceAllInterrupts();
+  
+
 }
 
 void loop() {
