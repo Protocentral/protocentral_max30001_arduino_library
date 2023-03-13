@@ -193,7 +193,9 @@ public:
 
 private:
   void
-  _max30001ReadECGFIFO(int num_samples, uint8_t *readBuffer);
+  void _max30001ReadECGFIFO(int num_samples, uint8_t *readBuffer);
+  void _max30001ReadBIOZFIFO(int num_samples, uint8_t *readBuffer);
+  
   void _max30001Synch(void);
   void _max30001RegWrite(unsigned char WRITE_ADDRESS, unsigned long data);
   void _max30001RegRead(uint8_t Reg_address, uint8_t *buff);

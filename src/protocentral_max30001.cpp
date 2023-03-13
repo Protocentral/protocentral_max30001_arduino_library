@@ -341,6 +341,27 @@ void MAX30001::_max30001ReadECGFIFO(int num_samples, uint8_t *readBuffer)
     SPI.endTransaction();
 }
 
+void MAX30001::_max30001ReadBIOZFIFO(int num_samples, uint8_t *readBuffer)
+{
+    uint8_t spiTxBuff;
+
+    SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
+
+    digitalWrite(_cs_pin, LOW);
+
+    spiTxBuff = (BIOZ_FIFO_BURST << 1) | RREG;
+    SPI.transfer(spiTxBuff); // Send register location
+
+    for (int i = 0; i < num_samples * 3; ++i)
+    {
+        readBuffer[i] = SPI.transfer(0x00);
+    }
+
+    digitalWrite(_cs_pin, HIGH);
+
+    SPI.endTransaction();
+}
+
 void MAX30001::max30001ServiceAllInterrupts(void)
 {
     static uint32_t InitReset = 0;
