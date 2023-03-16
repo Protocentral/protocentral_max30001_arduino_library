@@ -312,16 +312,6 @@ void MAX30001::max30001SetInterrupts(uint32_t interrupts_to_set)
     // delay(100);
 }
 
-/**/
-void MAX30001::readStatus(void)
-{
-
-    _max30001RegRead24(STATUS, &global_status.all);
-
-    // Serial.print("Status: ");
-    // Serial.println(global_status.all, HEX);
-}
-
 void MAX30001::_max30001ReadECGFIFO(int num_bytes, uint8_t *readBuffer)
 {
     uint8_t     spiTxBuff;
@@ -385,12 +375,9 @@ void MAX30001::max30001ServiceAllInterrupts(void)
     static uint32_t InitReset = 0;
     int fifo_num_bytes = 0;
 
-
-
-
     max30001_mngr_int_t mngr_int;
 
-    readStatus();
+     _max30001RegRead24(STATUS, &global_status.all);
 
     if (global_status.bit.eint == 1) // EINT bit is set. FIFO is full
     {

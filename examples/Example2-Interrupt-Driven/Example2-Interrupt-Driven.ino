@@ -38,11 +38,11 @@
 #define SPI_MOSI_PIN 3
 #define SPI_MISO_PIN 4
 
-#define MAX30001_CS_PIN     5
-#define MAX30001_INTB_PIN   20
-#define MAX30001_INT2B_PIN  19
+#define MAX30001_CS_PIN 5
+#define MAX30001_INTB_PIN 20
+#define MAX30001_INT2B_PIN 19
 
-#define MAX30001_DELAY_SAMPLES 8  // Time between consecutive samples
+#define MAX30001_DELAY_SAMPLES 8 // Time between consecutive samples
 
 #define CES_CMDIF_PKT_START_1 0x0A
 #define CES_CMDIF_PKT_START_2 0xFA
@@ -52,8 +52,8 @@
 #define ZERO 0
 
 volatile char DataPacket[DATA_LEN];
-const char DataPacketFooter[2] = { ZERO, CES_CMDIF_PKT_STOP };
-const char DataPacketHeader[5] = { CES_CMDIF_PKT_START_1, CES_CMDIF_PKT_START_2, DATA_LEN, ZERO, CES_CMDIF_TYPE_DATA };
+const char DataPacketFooter[2] = {ZERO, CES_CMDIF_PKT_STOP};
+const char DataPacketHeader[5] = {CES_CMDIF_PKT_START_1, CES_CMDIF_PKT_START_2, DATA_LEN, ZERO, CES_CMDIF_TYPE_DATA};
 
 uint8_t data_len = 0x0C;
 
@@ -62,7 +62,8 @@ MAX30001 max30001(MAX30001_CS_PIN);
 signed long ecg_data;
 signed long bioz_data;
 
-void sendData(signed long ecg_sample, signed long bioz_sample, bool _bioZSkipSample) {
+void sendData(signed long ecg_sample, signed long bioz_sample, bool _bioZSkipSample)
+{
 
   DataPacket[0] = ecg_sample;
   DataPacket[1] = ecg_sample >> 8;
@@ -74,55 +75,66 @@ void sendData(signed long ecg_sample, signed long bioz_sample, bool _bioZSkipSam
   DataPacket[6] = bioz_sample >> 16;
   DataPacket[7] = bioz_sample >> 24;
 
-  if (_bioZSkipSample == false) {
+  if (_bioZSkipSample == false)
+  {
     DataPacket[8] = 0x00;
-  } else {
+  }
+  else
+  {
     DataPacket[8] = 0xFF;
   }
 
-  DataPacket[9] = 0x00;  // max30001.heartRate >> 8;
+  DataPacket[9] = 0x00; // max30001.heartRate >> 8;
   DataPacket[10] = 0x00;
   DataPacket[11] = 0x00;
 
   // Send packet header (in ProtoCentral OpenView format)
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 5; i++)
+  {
     Serial.write(DataPacketHeader[i]);
   }
 
   // Send the data payload
-  for (int i = 0; i < DATA_LEN; i++)  // transmit the data
+  for (int i = 0; i < DATA_LEN; i++) // transmit the data
   {
     Serial.write(DataPacket[i]);
   }
 
   // Send packet footer (in ProtoCentral OpenView format)
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < 2; i++)
+  {
     Serial.write(DataPacketFooter[i]);
   }
 }
 
 bool BioZSkipSample = false;
 
-void setup() 
+void setup()
 {
-  Serial.begin(57600);  // Serial begin
+  Serial.begin(57600); // Serial begin
 
   pinMode(MAX30001_CS_PIN, OUTPUT);
   digitalWrite(MAX30001_CS_PIN, HIGH);
 
   pinMode(MAX30001_INTB_PIN, INPUT);
 
+#ifdef ARDUINO_ARCH_RP2040
   SPI.setRX(SPI_MISO_PIN);
   SPI.setTX(SPI_MOSI_PIN);
   SPI.setSCK(SPI_SCK_PIN);
+#endif
 
   SPI.begin();
 
   bool ret = max30001.max30001ReadInfo();
-  if (ret) {
+  if (ret)
+  {
     Serial.println("MAX 30001 read ID Success");
-  } else {
-    while (!ret) {
+  }
+  else
+  {
+    while (!ret)
+    {
       // stay here untill the issue is fixed.
       ret = max30001.max30001ReadInfo();
       Serial.println("Failed to read ID, please make sure all the pins are connected");
@@ -131,32 +143,22 @@ void setup()
   }
 
   Serial.println("Initialising the chip ...");
-  max30001.BeginECGBioZ();  // initialize MAX30001
-                            // max30001.Begin();
+  max30001.BeginECGBioZ(); // initialize MAX30001
 
   Serial.println("Chip initialised");
   attachInterrupt(digitalPinToInterrupt(MAX30001_INTB_PIN), intr_cb, FALLING);
-
-
 }
 
-//Interrupt callback handler
-void intr_cb() {
-  //spi_data_available = 1;
-  //Read the interrupt status register
- // max30001.readStatus();
-  //Serial.println("I");
-  //max30001.readStatus();
-  //ecg_data = max30001.getECGSamples();
-  //bioz_data = max30001.getBioZSamples();
+// Interrupt callback handler
+void intr_cb()
+{
   max30001.max30001ServiceAllInterrupts();
-  
-
 }
 
-void loop() {
-  //ecg_data = max30001.getECGSamples();
-  // max30001.getHRandRR();
+void loop()
+{
+  // ecg_data = max30001.getECGSamples();
+  //  max30001.getHRandRR();
   /*if (BioZSkipSample == false) {
     //bioz_data = max30001.getBioZSamples();
     //sendData(ecg_data, bioz_data, BioZSkipSample);
@@ -167,18 +169,16 @@ void loop() {
     //sendData(ecg_data, bioz_data, BioZSkipSample);
     BioZSkipSample=false;
   }*/
-  
-  
 
-    if(max30001.ecgSamplesAvailable>0)
+  if (max30001.ecgSamplesAvailable > 0)
+  {
+    // Serial.print("Data Available: ");
+    // Serial.println(max30001.ecgSamplesAvailable);
+    for (int i = 0; i < max30001.ecgSamplesAvailable; i++)
     {
-      //Serial.print("Data Available: ");
-      //Serial.println(max30001.ecgSamplesAvailable);
-      for(int i=0;i<max30001.ecgSamplesAvailable;i++)
-      {
-        sendData(max30001.s32ECGData[i], 0, false);
-      }
-      max30001.ecgSamplesAvailable=0;
+      sendData(max30001.s32ECGData[i], 0, false);
     }
-    //delay(4);
+    max30001.ecgSamplesAvailable = 0;
+  }
+  // delay(4);
 }
