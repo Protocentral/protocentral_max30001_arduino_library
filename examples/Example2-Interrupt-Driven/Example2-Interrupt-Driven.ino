@@ -157,7 +157,7 @@ void intr_cb() {
 void loop() {
   //ecg_data = max30001.getECGSamples();
   // max30001.getHRandRR();
-  if (BioZSkipSample == false) {
+  /*if (BioZSkipSample == false) {
     //bioz_data = max30001.getBioZSamples();
     //sendData(ecg_data, bioz_data, BioZSkipSample);
     BioZSkipSample = true;
@@ -166,6 +166,19 @@ void loop() {
     bioz_data = 0x00;
     //sendData(ecg_data, bioz_data, BioZSkipSample);
     BioZSkipSample=false;
-  }
-  delay(4);
+  }*/
+  
+  
+
+    if(max30001.ecgSamplesAvailable>0)
+    {
+      //Serial.print("Data Available: ");
+      //Serial.println(max30001.ecgSamplesAvailable);
+      for(int i=0;i<max30001.ecgSamplesAvailable;i++)
+      {
+        sendData(max30001.s32ECGData[i], 0, false);
+      }
+      max30001.ecgSamplesAvailable=0;
+    }
+    //delay(4);
 }

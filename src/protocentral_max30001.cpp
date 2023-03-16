@@ -45,6 +45,8 @@ MAX30001::MAX30001(int cs_pin)
     _cs_pin = cs_pin;
     pinMode(_cs_pin, OUTPUT);
     digitalWrite(_cs_pin, HIGH);
+
+    ecgSamplesAvailable = 0;
 }
 
 void MAX30001::_max30001RegWrite(unsigned char WRITE_ADDRESS, unsigned long data)
@@ -316,13 +318,15 @@ void MAX30001::readStatus(void)
 
     _max30001RegRead24(STATUS, &global_status.all);
 
-    Serial.print("Status: ");
-    Serial.println(global_status.all, HEX);
+    // Serial.print("Status: ");
+    // Serial.println(global_status.all, HEX);
 }
 
-void MAX30001::_max30001ReadECGFIFO(int num_samples, uint8_t *readBuffer)
+void MAX30001::_max30001ReadECGFIFO(int num_bytes, uint8_t *readBuffer)
 {
-    uint8_t spiTxBuff;
+    uint8_t     spiTxBuff;
+    unsigned long uecgtemp;    
+    signed long secgtemp;
 
     SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
 
@@ -331,7 +335,7 @@ void MAX30001::_max30001ReadECGFIFO(int num_samples, uint8_t *readBuffer)
     spiTxBuff = (ECG_FIFO_BURST << 1) | RREG;
     SPI.transfer(spiTxBuff); // Send register location
 
-    for (int i = 0; i < num_samples * 3; ++i)
+    for (int i = 0; i < num_bytes; ++i)
     {
         readBuffer[i] = SPI.transfer(0x00);
     }
@@ -339,6 +343,20 @@ void MAX30001::_max30001ReadECGFIFO(int num_samples, uint8_t *readBuffer)
     digitalWrite(_cs_pin, HIGH);
 
     SPI.endTransaction();
+
+    int secg_counter=0;
+
+    for (int i = 0; i < num_bytes; i += 3)
+    {
+        uecgtemp=(unsigned long)((unsigned long)readBuffer[i]<<16 |(unsigned long)readBuffer[i+1]<<8| (unsigned long)readBuffer[i+2]);
+        uecgtemp=(unsigned long) (uecgtemp<<8);
+        secgtemp=(signed long)uecgtemp;
+        secgtemp=(signed long) secgtemp>>8;
+
+        s32ECGData[secg_counter++] = secgtemp;
+    }
+
+    ecgSamplesAvailable = num_bytes/3;
 }
 
 void MAX30001::_max30001ReadBIOZFIFO(int num_samples, uint8_t *readBuffer)
@@ -367,6 +385,9 @@ void MAX30001::max30001ServiceAllInterrupts(void)
     static uint32_t InitReset = 0;
     int fifo_num_bytes = 0;
 
+
+
+
     max30001_mngr_int_t mngr_int;
 
     readStatus();
@@ -376,9 +397,13 @@ void MAX30001::max30001ServiceAllInterrupts(void)
         // Read the number of bytes in FIFO (from  MNGR_INT register)
         _max30001RegRead24(MNGR_INT, &mngr_int.all);
         fifo_num_bytes = (mngr_int.bit.e_fit + 1) * 3;
+        // Serial.println("MNGR");
+        // Serial.println(fifo_num_bytes);
 
         // Read ECG FIFO in Burst mode
         _max30001ReadECGFIFO(fifo_num_bytes, _readBuffer);
+        // getECGSamples();
+        // ecgDataAvailable=fifo_num_bytes;
 
         // Read BIOZ FIFO in Burst mode
     }
