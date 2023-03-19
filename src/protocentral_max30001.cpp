@@ -177,14 +177,20 @@ void MAX30001::BeginECGBioZ()
 {
     _max30001SwReset();
     delay(100);
-    _max30001RegWrite(CNFG_GEN, 0x0C0004); // ECG & BioZ Enabled , FMSTR = 32768
+
+    _max30001RegWrite(CNFG_GEN, 0xC0004); // ECG & BioZ Enabled , FMSTR = 32768
     delay(100);
-    _max30001RegWrite(CNFG_CAL, 0x720000); // Calibration sources disabled
+    //_max30001RegWrite(CNFG_CAL, 0x720000); // Calibration sources disabled
+    
+    _max30001RegWrite(CNFG_CAL, 0x702000); // Calibration sources disabled
     delay(100);
 
-    _max30001RegWrite(CNFG_ECG, 0x825000); // ECG_RATE: 125 SPS,
+    //_max30001RegWrite(CNFG_EMUX, 0x0B0000); // Pins internally connection to ECG Channels
+    _max30001RegWrite(CNFG_EMUX, 0x00); // Pins internally connection to ECG Channels
     delay(100);
-    _max30001RegWrite(CNFG_EMUX, 0x0B0000); // Pins internally connection to ECG Channels
+
+    //_max30001RegWrite(CNFG_ECG, 0x825000); // ECG_RATE: 125 SPS,
+    _max30001RegWrite(CNFG_ECG, 0x835000);
     delay(100);
 
     _max30001RegWrite(CNFG_BIOZ, 0x201433); // BioZ Rate: 64 SPS | Current generator: 32 uA
@@ -196,7 +202,7 @@ void MAX30001::BeginECGBioZ()
     _max30001RegWrite(CNFG_BMUX, 0x000040); // Pins connected internally to BioZ channels
     delay(100);
 
-    max30001SetInterrupts(EN_EINT | 0x01); // Enable ECG Interrupts
+    //max30001SetInterrupts(EN_EINT | 0x01); // Enable ECG Interrupts
 
     //_max30001RegWrite(CNFG_RTOR1,0x3fc600);
     _max30001Synch();

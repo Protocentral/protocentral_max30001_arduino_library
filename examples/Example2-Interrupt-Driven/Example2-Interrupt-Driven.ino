@@ -146,7 +146,7 @@ void setup()
   max30001.BeginECGBioZ(); // initialize MAX30001
 
   Serial.println("Chip initialised");
-  //attachInterrupt(digitalPinToInterrupt(MAX30001_INTB_PIN), intr_cb, FALLING);
+  // attachInterrupt(digitalPinToInterrupt(MAX30001_INTB_PIN), intr_cb, FALLING);
 }
 
 void loop()
