@@ -347,34 +347,33 @@ void MAX30001::_max30001ReadECGFIFO(int num_bytes)
     for (int i = 0; i < num_bytes; i += 3)
     {
         // Get etag
-        ecg_etag = ((((unsigned char) _readBufferECG[i + 2]) & 0x38) >> 3);
-        Serial.println(ecg_etag, HEX);
-        if (ecg_etag == 0x00)
+        ecg_etag = ((((unsigned char)_readBufferECG[i + 2]) & 0x38) >> 3);
+        //Serial.println(ecg_etag, HEX);
+
+        if (ecg_etag == 0x00)   //Valid sample 
         {
             // uecgtemp=(unsigned long)((unsigned long)readBuffer[i]<<16 |(unsigned long)readBuffer[i+1]<<8| (unsigned long)(readBuffer[i+2]&0xC0));
             uecgtemp = (unsigned long)(((unsigned long)_readBufferECG[i] << 16 | (unsigned long)_readBufferECG[i + 1] << 8) | (unsigned long)(_readBufferECG[i+2]&0xC0));
             uecgtemp = (unsigned long)(uecgtemp << 8);
 
             secgtemp = (signed long)uecgtemp;
-            //secgtemp = (signed long)secgtemp >> 8;
+            secgtemp = (signed long)secgtemp >> 8;
 
             s32ECGData[secg_counter++] = secgtemp;
-        } else if(ecg_etag==0x07)
+        }
+        else if (ecg_etag == 0x07)  //FIFO Overflow
         {
-            Serial.println("OVF");
+            //Serial.println("OVF");
             _max30001FIFOReset();
-
-
-
         }
     }
 
-    Serial.print("F");
-    Serial.println(secg_counter);
+    //Serial.print("F");
+    //Serial.println(secg_counter);
 
+    ecgSamplesAvailable = secg_counter ;
     secg_counter = 0;
 
-    ecgSamplesAvailable = (num_bytes / 3);
 }
 
 void MAX30001::_max30001ReadBIOZFIFO(int num_samples)
