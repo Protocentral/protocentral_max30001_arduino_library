@@ -16,10 +16,10 @@
             ],
             "intelliSenseMode": "gcc-x64",
             "includePath": [
-                "/Users/akw/Library/Arduino15/packages/rp2040/hardware/rp2040/3.0.0/include",
-                "/Users/akw/Library/Arduino15/packages/rp2040/hardware/rp2040/3.0.0/cores/rp2040",
-                "/Users/akw/Library/Arduino15/packages/rp2040/hardware/rp2040/3.0.0/variants/rpipico",
-                "/Users/akw/Library/Arduino15/packages/rp2040/hardware/rp2040/3.0.0/libraries/SPI/src",
+                "/Users/akw/Library/Arduino15/packages/rp2040/hardware/rp2040/3.1.0/include",
+                "/Users/akw/Library/Arduino15/packages/rp2040/hardware/rp2040/3.1.0/cores/rp2040",
+                "/Users/akw/Library/Arduino15/packages/rp2040/hardware/rp2040/3.1.0/variants/rpipico",
+                "/Users/akw/Library/Arduino15/packages/rp2040/hardware/rp2040/3.1.0/libraries/SPI/src",
                 "/Users/akw/Documents/Arduino/libraries/protocentral_max30001_arduino_library/src",
                 "/Users/akw/Library/Arduino15/packages/rp2040/tools/pqt-gcc/1.5.0-b-c7bab52/arm-none-eabi/include/c++/10.3.0",
                 "/Users/akw/Library/Arduino15/packages/rp2040/tools/pqt-gcc/1.5.0-b-c7bab52/arm-none-eabi/include/c++/10.3.0/arm-none-eabi/thumb",
@@ -29,7 +29,7 @@
                 "/Users/akw/Library/Arduino15/packages/rp2040/tools/pqt-gcc/1.5.0-b-c7bab52/arm-none-eabi/include"
             ],
             "forcedInclude": [
-                "/Users/akw/Library/Arduino15/packages/rp2040/hardware/rp2040/3.0.0/cores/rp2040/Arduino.h"
+                "/Users/akw/Library/Arduino15/packages/rp2040/hardware/rp2040/3.1.0/cores/rp2040/Arduino.h"
             ],
             "cStandard": "c11",
             "cppStandard": "c++17",

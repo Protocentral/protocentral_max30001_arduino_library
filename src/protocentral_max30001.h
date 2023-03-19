@@ -175,7 +175,7 @@ public:
   signed long ecg_data;
   signed long bioz_data;
 
-  int ecgSamplesAvailable;
+  volatile int ecgSamplesAvailable;
   signed long s32ECGData[128];
 
   void BeginECGOnly();
@@ -196,8 +196,8 @@ public:
 
 private:
 
-  void _max30001ReadECGFIFO(int num_bytes, uint8_t *readBuffer);
-  void _max30001ReadBIOZFIFO(int num_bytes, uint8_t *readBuffer);
+  void _max30001ReadECGFIFO(int num_bytes);
+  void _max30001ReadBIOZFIFO(int num_bytes);
   
   void _max30001Synch(void);
   void _max30001RegWrite(unsigned char WRITE_ADDRESS, unsigned long data);
@@ -205,10 +205,12 @@ private:
   void _max30001RegRead24(uint8_t Reg_address, uint32_t *read_data);
 
   void _max30001SwReset(void);
+  void _max30001FIFOReset(void);
 
   max30001_status_t global_status;
   int _cs_pin;
-  uint8_t _readBuffer[128]; // 4*32 samples
+  volatile unsigned char _readBufferECG[128]; // 4*32 samples
+  volatile unsigned char _readBufferBIOZ[128]; // 4*32 samples
 };
 
 #endif

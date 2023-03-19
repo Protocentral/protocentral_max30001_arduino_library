@@ -146,17 +146,12 @@ void setup()
   max30001.BeginECGBioZ(); // initialize MAX30001
 
   Serial.println("Chip initialised");
-  attachInterrupt(digitalPinToInterrupt(MAX30001_INTB_PIN), intr_cb, FALLING);
-}
-
-// Interrupt callback handler
-void intr_cb()
-{
-  max30001.max30001ServiceAllInterrupts();
+  //attachInterrupt(digitalPinToInterrupt(MAX30001_INTB_PIN), intr_cb, FALLING);
 }
 
 void loop()
 {
+  max30001.max30001ServiceAllInterrupts();
   // ecg_data = max30001.getECGSamples();
   //  max30001.getHRandRR();
   /*if (BioZSkipSample == false) {

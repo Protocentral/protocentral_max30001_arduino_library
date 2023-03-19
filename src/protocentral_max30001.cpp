@@ -127,6 +127,11 @@ void MAX30001::_max30001Synch(void)
     _max30001RegWrite(SYNCH, 0x000000);
 }
 
+void MAX30001::_max30001FIFOReset(void)
+{
+    _max30001RegWrite(FIFO_RST, 0x000000);
+}
+
 bool MAX30001::max30001ReadInfo(void)
 {
     uint8_t readBuff[4];
@@ -312,10 +317,12 @@ void MAX30001::max30001SetInterrupts(uint32_t interrupts_to_set)
     // delay(100);
 }
 
-void MAX30001::_max30001ReadECGFIFO(int num_bytes, uint8_t *readBuffer)
+int secg_counter = 0;
+
+void MAX30001::_max30001ReadECGFIFO(int num_bytes)
 {
-    uint8_t     spiTxBuff;
-    unsigned long uecgtemp;    
+    uint8_t spiTxBuff;
+    unsigned long uecgtemp;
     signed long secgtemp;
 
     SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
@@ -325,31 +332,52 @@ void MAX30001::_max30001ReadECGFIFO(int num_bytes, uint8_t *readBuffer)
     spiTxBuff = (ECG_FIFO_BURST << 1) | RREG;
     SPI.transfer(spiTxBuff); // Send register location
 
-    for (int i = 0; i < num_bytes; ++i)
+    for (int i = 0; i < num_bytes; i++)
     {
-        readBuffer[i] = SPI.transfer(0x00);
+        _readBufferECG[i] = SPI.transfer(0x00);
     }
 
     digitalWrite(_cs_pin, HIGH);
 
     SPI.endTransaction();
 
-    int secg_counter=0;
+    secg_counter = 0;
+    unsigned char ecg_etag;
 
     for (int i = 0; i < num_bytes; i += 3)
     {
-        uecgtemp=(unsigned long)((unsigned long)readBuffer[i]<<16 |(unsigned long)readBuffer[i+1]<<8| (unsigned long)readBuffer[i+2]);
-        uecgtemp=(unsigned long) (uecgtemp<<8);
-        secgtemp=(signed long)uecgtemp;
-        secgtemp=(signed long) secgtemp>>8;
+        // Get etag
+        ecg_etag = ((((unsigned char) _readBufferECG[i + 2]) & 0x38) >> 3);
+        Serial.println(ecg_etag, HEX);
+        if (ecg_etag == 0x00)
+        {
+            // uecgtemp=(unsigned long)((unsigned long)readBuffer[i]<<16 |(unsigned long)readBuffer[i+1]<<8| (unsigned long)(readBuffer[i+2]&0xC0));
+            uecgtemp = (unsigned long)(((unsigned long)_readBufferECG[i] << 16 | (unsigned long)_readBufferECG[i + 1] << 8) | (unsigned long)(_readBufferECG[i+2]&0xC0));
+            uecgtemp = (unsigned long)(uecgtemp << 8);
 
-        s32ECGData[secg_counter++] = secgtemp;
+            secgtemp = (signed long)uecgtemp;
+            //secgtemp = (signed long)secgtemp >> 8;
+
+            s32ECGData[secg_counter++] = secgtemp;
+        } else if(ecg_etag==0x07)
+        {
+            Serial.println("OVF");
+            _max30001FIFOReset();
+
+
+
+        }
     }
 
-    ecgSamplesAvailable = num_bytes/3;
+    Serial.print("F");
+    Serial.println(secg_counter);
+
+    secg_counter = 0;
+
+    ecgSamplesAvailable = (num_bytes / 3);
 }
 
-void MAX30001::_max30001ReadBIOZFIFO(int num_samples, uint8_t *readBuffer)
+void MAX30001::_max30001ReadBIOZFIFO(int num_samples)
 {
     uint8_t spiTxBuff;
 
@@ -362,7 +390,7 @@ void MAX30001::_max30001ReadBIOZFIFO(int num_samples, uint8_t *readBuffer)
 
     for (int i = 0; i < num_samples * 3; ++i)
     {
-        readBuffer[i] = SPI.transfer(0x00);
+        _readBufferBIOZ[i] = SPI.transfer(0x00);
     }
 
     digitalWrite(_cs_pin, HIGH);
@@ -377,7 +405,7 @@ void MAX30001::max30001ServiceAllInterrupts(void)
 
     max30001_mngr_int_t mngr_int;
 
-     _max30001RegRead24(STATUS, &global_status.all);
+    _max30001RegRead24(STATUS, &global_status.all);
 
     if (global_status.bit.eint == 1) // EINT bit is set. FIFO is full
     {
@@ -388,7 +416,8 @@ void MAX30001::max30001ServiceAllInterrupts(void)
         // Serial.println(fifo_num_bytes);
 
         // Read ECG FIFO in Burst mode
-        _max30001ReadECGFIFO(fifo_num_bytes, _readBuffer);
+        _max30001ReadECGFIFO(fifo_num_bytes);
+        //_max30001ReadBIOZFIFO(fifo_num_bytes/2, _readBufferBIOZ);
         // getECGSamples();
         // ecgDataAvailable=fifo_num_bytes;
 
