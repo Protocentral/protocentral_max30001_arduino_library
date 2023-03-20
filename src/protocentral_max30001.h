@@ -176,7 +176,9 @@ public:
   signed long bioz_data;
 
   volatile int ecgSamplesAvailable;
+  volatile int biozSamplesAvailable;
   signed long s32ECGData[128];
+  signed long s32BIOZData[128];
 
   void BeginECGOnly();
   void BeginECGBioZ();

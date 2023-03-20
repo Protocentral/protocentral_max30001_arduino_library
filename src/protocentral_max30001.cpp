@@ -324,6 +324,7 @@ void MAX30001::max30001SetInterrupts(uint32_t interrupts_to_set)
 }
 
 int secg_counter = 0;
+int sbioz_counter = 0;
 
 void MAX30001::_max30001ReadECGFIFO(int num_bytes)
 {
@@ -382,9 +383,11 @@ void MAX30001::_max30001ReadECGFIFO(int num_bytes)
 
 }
 
-void MAX30001::_max30001ReadBIOZFIFO(int num_samples)
+void MAX30001::_max30001ReadBIOZFIFO(int num_bytes)
 {
     uint8_t spiTxBuff;
+    unsigned long ubioztemp;
+    signed long sbioztemp;
 
     SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
 
@@ -393,7 +396,7 @@ void MAX30001::_max30001ReadBIOZFIFO(int num_samples)
     spiTxBuff = (BIOZ_FIFO_BURST << 1) | RREG;
     SPI.transfer(spiTxBuff); // Send register location
 
-    for (int i = 0; i < num_samples * 3; ++i)
+    for (int i = 0; i < num_bytes; i++)
     {
         _readBufferBIOZ[i] = SPI.transfer(0x00);
     }
@@ -401,6 +404,36 @@ void MAX30001::_max30001ReadBIOZFIFO(int num_samples)
     digitalWrite(_cs_pin, HIGH);
 
     SPI.endTransaction();
+
+    sbioz_counter = 0;
+    unsigned char bioz_etag;
+
+    for (int i = 0; i < num_bytes; i += 3)
+    {
+        // Get etag
+        bioz_etag = ((((unsigned char)_readBufferBIOZ[i + 2]) & 0x38) >> 3);
+        //Serial.println(ecg_etag, HEX);
+
+        if (bioz_etag == 0x00)   //Valid sample 
+        {
+            // uecgtemp=(unsigned long)((unsigned long)readBuffer[i]<<16 |(unsigned long)readBuffer[i+1]<<8| (unsigned long)(readBuffer[i+2]&0xC0));
+            ubioztemp = (unsigned long)(((unsigned long)_readBufferBIOZ[i] << 16 | (unsigned long)_readBufferBIOZ[i + 1] << 8) | (unsigned long)(_readBufferBIOZ[i+2]&0xC0));
+            ubioztemp = (unsigned long)(ubioztemp << 8);
+
+            sbioztemp = (signed long)ubioztemp;
+            sbioztemp = (signed long)sbioztemp >> 8;
+
+            s32BIOZData[sbioz_counter++] = sbioztemp;
+        }
+        else if (bioz_etag == 0x07)  //FIFO Overflow
+        {
+            //Serial.println("OVF");
+            _max30001FIFOReset();
+        }
+    }
+
+    biozSamplesAvailable = sbioz_counter ;
+    sbioz_counter = 0;
 }
 
 void MAX30001::max30001ServiceAllInterrupts(void)
@@ -428,4 +461,14 @@ void MAX30001::max30001ServiceAllInterrupts(void)
 
         // Read BIOZ FIFO in Burst mode
     }
+
+    if(global_status.bit.bint==1) //BIOZ FIFO is full
+    {
+        _max30001RegRead24(MNGR_INT, &mngr_int.all);
+        fifo_num_bytes = (mngr_int.bit.b_fit + 1) * 3;
+
+        _max30001ReadBIOZFIFO(fifo_num_bytes);
+
+    }
+    
 }
