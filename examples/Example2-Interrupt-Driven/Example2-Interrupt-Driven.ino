@@ -42,6 +42,8 @@
 #define MAX30001_INTB_PIN 20
 #define MAX30001_INT2B_PIN 19
 
+#define AFE44XX_CS_PIN 27
+
 #define MAX30001_DELAY_SAMPLES 8 // Time between consecutive samples
 
 #define CES_CMDIF_PKT_START_1 0x0A
@@ -115,6 +117,9 @@ void setup()
 
   pinMode(MAX30001_CS_PIN, OUTPUT);
   digitalWrite(MAX30001_CS_PIN, HIGH);
+
+  pinMode(AFE44XX_CS_PIN, OUTPUT);
+  digitalWrite(AFE44XX_CS_PIN, HIGH);
 
   pinMode(MAX30001_INTB_PIN, INPUT);
 
