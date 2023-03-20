@@ -193,14 +193,17 @@ void MAX30001::BeginECGBioZ()
     _max30001RegWrite(CNFG_ECG, 0x835000);
     delay(100);
 
+    _max30001RegWrite(CNFG_BMUX, 0x000040); // Pins connected internally to BioZ channels
+    delay(100);
+
     _max30001RegWrite(CNFG_BIOZ, 0x201433); // BioZ Rate: 64 SPS | Current generator: 32 uA
     delay(100);
 
     // Set MAX30001G specific BioZ LC
     _max30001RegWrite(CNFG_BIOZ_LC, 0x800000); // Turn OFF low current mode
 
-    _max30001RegWrite(CNFG_BMUX, 0x000040); // Pins connected internally to BioZ channels
-    delay(100);
+    _max30001RegWrite(MNGR_INT, 0x7F0000); // EFIT=16, BFIT=8
+    
 
     //max30001SetInterrupts(EN_EINT | 0x01); // Enable ECG Interrupts
 
@@ -450,16 +453,8 @@ void MAX30001::max30001ServiceAllInterrupts(void)
         // Read the number of bytes in FIFO (from  MNGR_INT register)
         _max30001RegRead24(MNGR_INT, &mngr_int.all);
         fifo_num_bytes = (mngr_int.bit.e_fit + 1) * 3;
-        // Serial.println("MNGR");
-        // Serial.println(fifo_num_bytes);
 
-        // Read ECG FIFO in Burst mode
         _max30001ReadECGFIFO(fifo_num_bytes);
-        //_max30001ReadBIOZFIFO(fifo_num_bytes/2, _readBufferBIOZ);
-        // getECGSamples();
-        // ecgDataAvailable=fifo_num_bytes;
-
-        // Read BIOZ FIFO in Burst mode
     }
 
     if(global_status.bit.bint==1) //BIOZ FIFO is full
@@ -467,8 +462,8 @@ void MAX30001::max30001ServiceAllInterrupts(void)
         _max30001RegRead24(MNGR_INT, &mngr_int.all);
         fifo_num_bytes = (mngr_int.bit.b_fit + 1) * 3;
 
+        // Read BIOZ FIFO in Burst mode
         _max30001ReadBIOZFIFO(fifo_num_bytes);
 
-    }
-    
+    }    
 }
