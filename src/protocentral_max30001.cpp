@@ -202,7 +202,7 @@ void MAX30001::BeginECGBioZ()
     // Set MAX30001G specific BioZ LC
     _max30001RegWrite(CNFG_BIOZ_LC, 0x800000); // Turn OFF low current mode
 
-    _max30001RegWrite(MNGR_INT, 0x7F0000); // EFIT=16, BFIT=8
+    _max30001RegWrite(MNGR_INT, 0x7B0000); // EFIT=16, BFIT=8
     
 
     //max30001SetInterrupts(EN_EINT | 0x01); // Enable ECG Interrupts
