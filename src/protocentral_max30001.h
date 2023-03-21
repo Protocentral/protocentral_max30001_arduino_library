@@ -21,7 +21,41 @@
 //
 //  For information on how to use, visit https://github.com/Protocentral/protocentral-max30001-arduino
 //
+//  SOME PARTS OF THIS CODE ARE COPYRIGHT MAXIM INTEFGRATED PRODUCTS, INC. and are used with permission according to the following license:
+//
 /////////////////////////////////////////////////////////////////////////////////////////
+
+/*******************************************************************************
+ * Copyright (C) 2016 Maxim Integrated Products, Inc., All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL MAXIM INTEGRATED BE LIABLE FOR ANY CLAIM, DAMAGES
+ * OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Except as contained in this notice, the name of Maxim Integrated
+ * Products, Inc. shall not be used except as stated in the Maxim Integrated
+ * Products, Inc. Branding Policy.
+ *
+ * The mere transfer of this software does not imply any licenses
+ * of trade secrets, proprietary technology, copyrights, patents,
+ * trademarks, maskwork rights, or any other form of intellectual
+ * property whatsoever. Maxim Integrated Products, Inc. retains all
+ * ownership rights.
+ *******************************************************************************/
 
 #ifndef protocentral_max30001_h
 #define protocentral_max30001_h
@@ -159,6 +193,56 @@ typedef union max30001_mngr_int_reg
 
 } max30001_mngr_int_t;
 
+/**
+ * @brief CNFG_BMUX   (0x17)
+ */
+typedef union max30001_cnfg_bmux_reg
+{
+  uint32_t all;
+  struct
+  {
+    uint32_t fbist : 2;
+    uint32_t reserved1 : 2;
+    uint32_t rmod : 3;
+    uint32_t reserved2 : 1;
+    uint32_t rnom : 3;
+    uint32_t en_bist : 1;
+    uint32_t cg_mode : 2;
+    uint32_t reserved3 : 2;
+    uint32_t caln_sel : 2;
+    uint32_t calp_sel : 2;
+    uint32_t openn : 1;
+    uint32_t openp : 1;
+    uint32_t reserved4 : 2;
+    uint32_t reserved : 8;
+  } bit;
+
+} max30001_cnfg_bmux_t;
+
+/**
+ * @brief CNFG_BIOZ   (0x18)
+ */
+typedef union max30001_bioz_reg
+{
+  uint32_t all;
+  struct
+  {
+    uint32_t phoff : 4;
+    uint32_t cgmag : 3;
+    uint32_t cgmon : 1;
+    uint32_t fcgen : 4;
+    uint32_t dlpf : 2;
+    uint32_t dhpf : 2;
+    uint32_t gain : 2;
+    uint32_t ln_bioz : 1;
+    uint32_t ext_rbias : 1;
+    uint32_t ahpf : 3;
+    uint32_t rate : 1;
+    uint32_t reserved : 8;
+  } bit;
+
+} max30001_cnfg_bioz_t;
+
 typedef enum
 {
   SAMPLINGRATE_128 = 128,
@@ -197,10 +281,9 @@ public:
   void readStatus(void);
 
 private:
-
   void _max30001ReadECGFIFO(int num_bytes);
   void _max30001ReadBIOZFIFO(int num_bytes);
-  
+
   void _max30001Synch(void);
   void _max30001RegWrite(unsigned char WRITE_ADDRESS, unsigned long data);
   void _max30001RegRead(uint8_t Reg_address, uint8_t *buff);
@@ -211,7 +294,7 @@ private:
 
   max30001_status_t global_status;
   int _cs_pin;
-  volatile unsigned char _readBufferECG[128]; // 4*32 samples
+  volatile unsigned char _readBufferECG[128];  // 4*32 samples
   volatile unsigned char _readBufferBIOZ[128]; // 4*32 samples
 };
 

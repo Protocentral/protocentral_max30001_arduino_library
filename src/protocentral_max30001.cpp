@@ -175,6 +175,9 @@ void MAX30001::BeginECGOnly()
 
 void MAX30001::BeginECGBioZ()
 {
+     max30001_cnfg_bmux_t cnfg_bmux;
+     max30001_cnfg_bioz_t cnfg_bioz;
+
     _max30001SwReset();
     delay(100);
 
@@ -193,17 +196,44 @@ void MAX30001::BeginECGBioZ()
     _max30001RegWrite(CNFG_ECG, 0x835000);
     delay(100);
 
-    _max30001RegWrite(CNFG_BMUX, 0x000040); // Pins connected internally to BioZ channels
+    cnfg_bmux.bit.openp = 0;
+    cnfg_bmux.bit.openn = 0;
+    cnfg_bmux.bit.calp_sel = 0x00;  // No cal signal on BioZ
+    cnfg_bmux.bit.caln_sel = 0x00;  // No cal signal on BioZ
+    cnfg_bmux.bit.cg_mode = 0x00;   // Unchopped
+    cnfg_bmux.bit.en_bist=0;
+    cnfg_bmux.bit.rnom=0x00;
+    cnfg_bmux.bit.rmod=0x04;
+    cnfg_bmux.bit.fbist=0;
+
+    _max30001RegWrite(CNFG_BMUX, cnfg_bmux.all); 
     delay(100);
 
-    _max30001RegWrite(CNFG_BIOZ, 0x201433); // BioZ Rate: 64 SPS | Current generator: 32 uA
-    delay(100);
+    //_max30001RegWrite(CNFG_BMUX, 0x000040); // Pins connected internally to BioZ channels
+    //delay(100);
 
-    // Set MAX30001G specific BioZ LC
+     // Set MAX30001G specific BioZ LC
     _max30001RegWrite(CNFG_BIOZ_LC, 0x800000); // Turn OFF low current mode
+    delay(100);
+
+    cnfg_bioz.bit.rate = 0;
+    cnfg_bioz.bit.ahpf = 0b010;
+    cnfg_bioz.bit.ext_rbias = 0x00;
+    cnfg_bioz.bit.ln_bioz=1;
+    cnfg_bioz.bit.gain = 0b10;
+    cnfg_bioz.bit.dhpf = 0b01;
+    cnfg_bioz.bit.dlpf = 0x01;
+    cnfg_bioz.bit.fcgen = 0b100;
+    cnfg_bioz.bit.cgmon = 0x00;
+    cnfg_bioz.bit.cgmag = 0b011;
+    cnfg_bioz.bit.phoff = 0x0000;
+
+    //_max30001RegWrite(CNFG_BIOZ, 0x201433); // BioZ Rate: 64 SPS | Current generator: 32 uA
+    _max30001RegWrite(CNFG_BIOZ, cnfg_bioz.all); 
+    delay(100);
 
     _max30001RegWrite(MNGR_INT, 0x7B0000); // EFIT=16, BFIT=8
-    
+    delay(100);
 
     //max30001SetInterrupts(EN_EINT | 0x01); // Enable ECG Interrupts
 

@@ -38,7 +38,7 @@
 #define SPI_MOSI_PIN 3
 #define SPI_MISO_PIN 4
 
-#define MAX30001_CS_PIN 5
+#define MAX30001_CS_PIN 7 // 5
 #define MAX30001_INTB_PIN 20
 #define MAX30001_INT2B_PIN 19
 
