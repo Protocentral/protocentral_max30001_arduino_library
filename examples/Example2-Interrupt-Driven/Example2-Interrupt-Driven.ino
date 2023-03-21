@@ -34,15 +34,8 @@
 #include <SPI.h>
 #include "protocentral_max30001.h"
 
-#define SPI_SCK_PIN 2
-#define SPI_MOSI_PIN 3
-#define SPI_MISO_PIN 4
-
 #define MAX30001_CS_PIN 7 // 5
-#define MAX30001_INTB_PIN 20
-#define MAX30001_INT2B_PIN 19
-
-#define AFE44XX_CS_PIN 27
+#define MAX30001_INTB_PIN 2
 
 #define MAX30001_DELAY_SAMPLES 8 // Time between consecutive samples
 
@@ -118,17 +111,6 @@ void setup()
   pinMode(MAX30001_CS_PIN, OUTPUT);
   digitalWrite(MAX30001_CS_PIN, HIGH);
 
-  pinMode(AFE44XX_CS_PIN, OUTPUT);
-  digitalWrite(AFE44XX_CS_PIN, HIGH);
-
-  pinMode(MAX30001_INTB_PIN, INPUT);
-
-#ifdef ARDUINO_ARCH_RP2040
-  SPI.setRX(SPI_MISO_PIN);
-  SPI.setTX(SPI_MOSI_PIN);
-  SPI.setSCK(SPI_SCK_PIN);
-#endif
-
   SPI.begin();
 
   bool ret = max30001.max30001ReadInfo();
@@ -151,24 +133,11 @@ void setup()
   max30001.BeginECGBioZ(); // initialize MAX30001
 
   Serial.println("Chip initialised");
-  // attachInterrupt(digitalPinToInterrupt(MAX30001_INTB_PIN), intr_cb, FALLING);
 }
 
 void loop()
 {
   max30001.max30001ServiceAllInterrupts();
-  // ecg_data = max30001.getECGSamples();
-  //  max30001.getHRandRR();
-  /*if (BioZSkipSample == false) {
-    //bioz_data = max30001.getBioZSamples();
-    //sendData(ecg_data, bioz_data, BioZSkipSample);
-    BioZSkipSample = true;
-  } else
-  {
-    bioz_data = 0x00;
-    //sendData(ecg_data, bioz_data, BioZSkipSample);
-    BioZSkipSample=false;
-  }*/
 
   if (max30001.ecgSamplesAvailable > 0)
   {
@@ -180,5 +149,5 @@ void loop()
     }
     max30001.ecgSamplesAvailable = 0;
   }
-  // delay(4);
+  
 }
