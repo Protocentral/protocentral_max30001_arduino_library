@@ -1,0 +1,5 @@
+{
+    "port": "/dev/tty.usbmodem212301",
+    "board": "arduino:avr:uno",
+    "sketch": "examples/Example1-ECG-BioZ-stream-Openview/Example1-ECG-BioZ-stream-Openview.ino"
+}

@@ -1,10 +1,10 @@
-// ______          _        _____            _             _ 
+// ______          _        _____            _             _
 // | ___ \        | |      /  __ \          | |           | |
 // | |_/ / __ ___ | |_ ___ | /  \/ ___ _ __ | |_ _ __ __ _| |
 // |  __/ '__/ _ \| __/ _ \| |    / _ \ '_ \| __| '__/ _` | |
 // | |  | | | (_) | || (_) | \__/\  __/ | | | |_| | | (_| | |
-// \_|  |_|  \___/ \__\___/ \____/\___|_| |_|\__|_|  \__,_|_|                                  
-                                                          
+// \_|  |_|  \___/ \__\___/ \____/\___|_| |_|\__|_|  \__,_|_|
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //
 //  Demo code for the MAX30001 breakout board
@@ -35,23 +35,24 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////
 
-#include<SPI.h>
+#include <SPI.h>
 #include "protocentral_max30001.h"
 
 #define MAX30001_SPI_SPEED 1000000
 
 MAX30001::MAX30001(int cs_pin)
 {
-    _cs_pin=cs_pin;
+    _cs_pin = cs_pin;
     pinMode(_cs_pin, OUTPUT);
-    digitalWrite(_cs_pin,HIGH);
+    digitalWrite(_cs_pin, HIGH);
 
-
+    ecgSamplesAvailable = 0;
 }
-void MAX30001::_max30001RegWrite (unsigned char WRITE_ADDRESS, unsigned long data)
+
+void MAX30001::_max30001RegWrite(unsigned char WRITE_ADDRESS, unsigned long data)
 {
-    //Combine the register address and the command into one byte:
-    byte dataToSend = (WRITE_ADDRESS<<1) | WREG;
+    // Combine the register address and the command into one byte:
+    byte dataToSend = (WRITE_ADDRESS << 1) | WREG;
 
     SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
 
@@ -59,8 +60,8 @@ void MAX30001::_max30001RegWrite (unsigned char WRITE_ADDRESS, unsigned long dat
 
     delay(2);
     SPI.transfer(dataToSend);
-    SPI.transfer(data>>16);
-    SPI.transfer(data>>8);
+    SPI.transfer(data >> 16);
+    SPI.transfer(data >> 8);
     SPI.transfer(data);
     delay(2);
 
@@ -69,7 +70,32 @@ void MAX30001::_max30001RegWrite (unsigned char WRITE_ADDRESS, unsigned long dat
     SPI.endTransaction();
 }
 
-void MAX30001::_max30001RegRead(uint8_t Reg_address, uint8_t * buff)
+void MAX30001::_max30001RegRead24(uint8_t Reg_address, uint32_t *read_data)
+{
+    uint8_t spiTxBuff;
+
+    uint8_t buff[4];
+
+    SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
+
+    digitalWrite(_cs_pin, LOW);
+
+    spiTxBuff = (Reg_address << 1) | RREG;
+    SPI.transfer(spiTxBuff); // Send register location
+
+    for (int i = 0; i < 3; i++)
+    {
+        buff[i] = SPI.transfer(0xff);
+    }
+
+    digitalWrite(_cs_pin, HIGH);
+
+    *read_data = (buff[0] << 16) | (buff[1] << 8) | buff[2];
+
+    SPI.endTransaction();
+}
+
+void MAX30001::_max30001RegRead(uint8_t Reg_address, uint8_t *buff)
 {
     uint8_t spiTxBuff;
 
@@ -77,69 +103,56 @@ void MAX30001::_max30001RegRead(uint8_t Reg_address, uint8_t * buff)
 
     digitalWrite(_cs_pin, LOW);
 
-    spiTxBuff = (Reg_address<<1 ) | RREG;
-    SPI.transfer(spiTxBuff); //Send register location
+    spiTxBuff = (Reg_address << 1) | RREG;
+    SPI.transfer(spiTxBuff); // Send register location
 
-    for ( int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
     {
-       buff[i] = SPI.transfer(0xff);
+        buff[i] = SPI.transfer(0xff);
     }
 
     digitalWrite(_cs_pin, HIGH);
-    
+
     SPI.endTransaction();
 }
 
 void MAX30001::_max30001SwReset(void)
 {
-    _max30001RegWrite(SW_RST,0x000000);
+    _max30001RegWrite(SW_RST, 0x000000);
     delay(100);
 }
 
 void MAX30001::_max30001Synch(void)
 {
-    _max30001RegWrite(SYNCH,0x000000);
+    _max30001RegWrite(SYNCH, 0x000000);
+}
+
+void MAX30001::_max30001FIFOReset(void)
+{
+    _max30001RegWrite(FIFO_RST, 0x000000);
 }
 
 bool MAX30001::max30001ReadInfo(void)
 {
-    uint8_t readBuff[4] ;
+    uint8_t readBuff[4];
 
     _max30001RegRead(INFO, readBuff);
 
-    if((readBuff[0]&0xf0) == 0x50 ){
-      Serial.print("MAX30001 Detected. Rev ID:  ");
-      Serial.println((readBuff[0]&0xf0));
+    if ((readBuff[0] & 0xf0) == 0x50)
+    {
+        Serial.print("MAX30001 Detected. Rev ID:  ");
+        Serial.println((readBuff[0] & 0xf0));
 
-      return true;
-    }else{
+        return true;
+    }
+    else
+    {
 
-      Serial.println("MAX30001 read info error\n");
-      return false;
+        Serial.println("MAX30001 read info error\n");
+        return false;
     }
 
     return false;
-}
-
-void MAX30001::_max30001ReadData(int num_samples, uint8_t * readBuffer)
-{
-    uint8_t spiTxBuff;
-
-    SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
-
-    digitalWrite(_cs_pin, LOW);
-
-    spiTxBuff = (ECG_FIFO_BURST<<1 ) | RREG;
-    SPI.transfer(spiTxBuff); //Send register location
-
-    for ( int i = 0; i < num_samples*3; ++i)
-    {
-      readBuffer[i] = SPI.transfer(0x00);
-    }
-
-    digitalWrite(_cs_pin, HIGH);
-
-    SPI.endTransaction();
 }
 
 void MAX30001::BeginECGOnly()
@@ -148,40 +161,81 @@ void MAX30001::BeginECGOnly()
     delay(100);
     _max30001RegWrite(CNFG_GEN, 0x081007);
     delay(100);
-    _max30001RegWrite(CNFG_CAL, 0x720000);  // 0x700000
+    _max30001RegWrite(CNFG_CAL, 0x720000); // 0x700000
     delay(100);
-    _max30001RegWrite(CNFG_EMUX,0x0B0000);
+    _max30001RegWrite(CNFG_EMUX, 0x0B0000);
     delay(100);
-    _max30001RegWrite(CNFG_ECG, 0x825000);  // d23 - d22 : 10 for 250sps , 00:500 sps
+    _max30001RegWrite(CNFG_ECG, 0x825000); // d23 - d22 : 10 for 250sps , 00:500 sps
     delay(100);
 
-    _max30001RegWrite(CNFG_RTOR1,0x3fc600);
+    _max30001RegWrite(CNFG_RTOR1, 0x3fc600);
     _max30001Synch();
     delay(100);
 }
 
 void MAX30001::BeginECGBioZ()
 {
+     max30001_cnfg_bmux_t cnfg_bmux;
+     max30001_cnfg_bioz_t cnfg_bioz;
+
     _max30001SwReset();
     delay(100);
-    _max30001RegWrite(CNFG_GEN, 0x0C0004); // ECG & BioZ Enabled , FMSTR = 32768
+
+    _max30001RegWrite(CNFG_GEN, 0xC0004); // ECG & BioZ Enabled , FMSTR = 32768
     delay(100);
-    _max30001RegWrite(CNFG_CAL, 0x720000);  // Calibration sources disabled
+    //_max30001RegWrite(CNFG_CAL, 0x720000); // Calibration sources disabled
+    
+    _max30001RegWrite(CNFG_CAL, 0x702000); // Calibration sources disabled
     delay(100);
 
-    _max30001RegWrite(CNFG_ECG, 0x825000);  // ECG_RATE: 125 SPS, 
-    delay(100);
-    _max30001RegWrite(CNFG_EMUX,0x0B0000); // Pins internally connection to ECG Channels
-    delay(100);
-
-    _max30001RegWrite(CNFG_BIOZ, 0x201433);  // BioZ Rate: 64 SPS | Current generator: 32 uA
+    //_max30001RegWrite(CNFG_EMUX, 0x0B0000); // Pins internally connection to ECG Channels
+    _max30001RegWrite(CNFG_EMUX, 0x00); // Pins internally connection to ECG Channels
     delay(100);
 
-    //Set MAX30001G specific BioZ LC
+    //_max30001RegWrite(CNFG_ECG, 0x825000); // ECG_RATE: 125 SPS,
+    _max30001RegWrite(CNFG_ECG, 0x835000);
+    delay(100);
+
+    cnfg_bmux.bit.openp = 0;
+    cnfg_bmux.bit.openn = 0;
+    cnfg_bmux.bit.calp_sel = 0x00;  // No cal signal on BioZ
+    cnfg_bmux.bit.caln_sel = 0x00;  // No cal signal on BioZ
+    cnfg_bmux.bit.cg_mode = 0x00;   // Unchopped
+    cnfg_bmux.bit.en_bist=0;
+    cnfg_bmux.bit.rnom=0x00;
+    cnfg_bmux.bit.rmod=0x04;
+    cnfg_bmux.bit.fbist=0;
+
+    _max30001RegWrite(CNFG_BMUX, cnfg_bmux.all); 
+    delay(100);
+
+    //_max30001RegWrite(CNFG_BMUX, 0x000040); // Pins connected internally to BioZ channels
+    //delay(100);
+
+     // Set MAX30001G specific BioZ LC
     _max30001RegWrite(CNFG_BIOZ_LC, 0x800000); // Turn OFF low current mode
-
-    _max30001RegWrite(CNFG_BMUX,0x000040);  // Pins connected internally to BioZ channels
     delay(100);
+
+    cnfg_bioz.bit.rate = 0;
+    cnfg_bioz.bit.ahpf = 0b010;
+    cnfg_bioz.bit.ext_rbias = 0x00;
+    cnfg_bioz.bit.ln_bioz=1;
+    cnfg_bioz.bit.gain = 0b10;
+    cnfg_bioz.bit.dhpf = 0b01;
+    cnfg_bioz.bit.dlpf = 0x01;
+    cnfg_bioz.bit.fcgen = 0b100;
+    cnfg_bioz.bit.cgmon = 0x00;
+    cnfg_bioz.bit.cgmag = 0b011;
+    cnfg_bioz.bit.phoff = 0x0000;
+
+    //_max30001RegWrite(CNFG_BIOZ, 0x201433); // BioZ Rate: 64 SPS | Current generator: 32 uA
+    _max30001RegWrite(CNFG_BIOZ, cnfg_bioz.all); 
+    delay(100);
+
+    _max30001RegWrite(MNGR_INT, 0x7B0000); // EFIT=16, BFIT=8
+    delay(100);
+
+    //max30001SetInterrupts(EN_EINT | 0x01); // Enable ECG Interrupts
 
     //_max30001RegWrite(CNFG_RTOR1,0x3fc600);
     _max30001Synch();
@@ -194,13 +248,13 @@ void MAX30001::BeginRtoRMode()
     delay(100);
     _max30001RegWrite(CNFG_GEN, 0x080004);
     delay(100);
-    _max30001RegWrite(CNFG_CAL, 0x720000);  // 0x700000
+    _max30001RegWrite(CNFG_CAL, 0x720000); // 0x700000
     delay(100);
-    _max30001RegWrite(CNFG_EMUX,0x0B0000);
+    _max30001RegWrite(CNFG_EMUX, 0x0B0000);
     delay(100);
-    _max30001RegWrite(CNFG_ECG, 0x805000);  // d23 - d22 : 10 for 250sps , 00:500 sps
+    _max30001RegWrite(CNFG_ECG, 0x805000); // d23 - d22 : 10 for 250sps , 00:500 sps
     delay(100);
-    _max30001RegWrite(CNFG_RTOR1,0x3fc600);
+    _max30001RegWrite(CNFG_RTOR1, 0x3fc600);
     delay(100);
     _max30001RegWrite(EN_INT, 0x000401);
     delay(100);
@@ -208,28 +262,29 @@ void MAX30001::BeginRtoRMode()
     delay(100);
 }
 
-//not tested
+// not tested
 void MAX30001::max30001SetsamplingRate(uint16_t samplingRate)
 {
     uint8_t regBuff[4] = {0};
     _max30001RegRead(CNFG_ECG, regBuff);
 
-    switch(samplingRate){
-        case SAMPLINGRATE_128:
-                regBuff[0] = (regBuff[0] | 0x80 );
-            break;
+    switch (samplingRate)
+    {
+    case SAMPLINGRATE_128:
+        regBuff[0] = (regBuff[0] | 0x80);
+        break;
 
-        case SAMPLINGRATE_256:
-                regBuff[0] = (regBuff[0] | 0x40 );
-            break;
+    case SAMPLINGRATE_256:
+        regBuff[0] = (regBuff[0] | 0x40);
+        break;
 
-        case SAMPLINGRATE_512:
-                regBuff[0] = (regBuff[0] | 0x00 );
-            break;
+    case SAMPLINGRATE_512:
+        regBuff[0] = (regBuff[0] | 0x00);
+        break;
 
-        default :
-            Serial.println("Invalid sample rate. Please choose between 128, 256 or 512");
-            break;
+    default:
+        Serial.println("Invalid sample rate. Please choose between 128, 256 or 512");
+        break;
     }
 
     unsigned long cnfgEcg;
@@ -245,16 +300,16 @@ signed long MAX30001::getECGSamples(void)
     uint8_t regReadBuff[4];
     _max30001RegRead(ECG_FIFO, regReadBuff);
 
-    unsigned long data0 = (unsigned long) (regReadBuff[0]);
-    data0 = data0 <<24;
-    unsigned long data1 = (unsigned long) (regReadBuff[1]);
-    data1 = data1 <<16;
-    unsigned long data2 = (unsigned long) (regReadBuff[2]);
-    data2 = data2 >>6;
+    unsigned long data0 = (unsigned long)(regReadBuff[0]);
+    data0 = data0 << 24;
+    unsigned long data1 = (unsigned long)(regReadBuff[1]);
+    data1 = data1 << 16;
+    unsigned long data2 = (unsigned long)(regReadBuff[2]);
+    data2 = data2 >> 6;
     data2 = data2 & 0x03;
 
-    unsigned long data = (unsigned long) (data0 | data1 | data2);
-    ecg_data = (signed long) data;
+    unsigned long data = (unsigned long)(data0 | data1 | data2);
+    ecg_data = (signed long)data;
     return ecg_data;
 }
 
@@ -262,34 +317,183 @@ signed long MAX30001::getBioZSamples(void)
 {
     uint8_t regReadBuff[4];
     _max30001RegRead(BIOZ_FIFO, regReadBuff);
-    
-    unsigned long data0 = (unsigned long) (regReadBuff[0]);
-    data0 = data0 <<24;
-    unsigned long data1 = (unsigned long) (regReadBuff[1]);
-    data1 = data1 <<16;
-    unsigned long data2 = (unsigned long) (regReadBuff[2]);
-    data2 = data2 >>6;
+
+    unsigned long data0 = (unsigned long)(regReadBuff[0]);
+    data0 = data0 << 24;
+    unsigned long data1 = (unsigned long)(regReadBuff[1]);
+    data1 = data1 << 16;
+    unsigned long data2 = (unsigned long)(regReadBuff[2]);
+    data2 = data2 >> 6;
     data2 = data2 & 0x03;
 
-    unsigned long data = (unsigned long) (data0 | data1 | data2);
-    bioz_data = (signed long) (data);
+    unsigned long data = (unsigned long)(data0 | data1 | data2);
+    bioz_data = (signed long)(data);
     return bioz_data;
 }
-
 
 void MAX30001::getHRandRR(void)
 {
     uint8_t regReadBuff[4];
     _max30001RegRead(RTOR, regReadBuff);
 
-    unsigned long RTOR_msb = (unsigned long) (regReadBuff[0]);
-    unsigned char RTOR_lsb = (unsigned char) (regReadBuff[1]);
-    unsigned long rtor = (RTOR_msb<<8 | RTOR_lsb);
-    rtor = ((rtor >>2) & 0x3fff) ;
+    unsigned long RTOR_msb = (unsigned long)(regReadBuff[0]);
+    unsigned char RTOR_lsb = (unsigned char)(regReadBuff[1]);
+    unsigned long rtor = (RTOR_msb << 8 | RTOR_lsb);
+    rtor = ((rtor >> 2) & 0x3fff);
 
-    float hr =  60 /((float)rtor*0.0078125);
+    float hr = 60 / ((float)rtor * 0.0078125);
     heartRate = (unsigned int)hr;
 
-    unsigned int RR = (unsigned int)rtor* (7.8125) ;  //8ms
+    unsigned int RR = (unsigned int)rtor * (7.8125); // 8ms
     RRinterval = RR;
+}
+
+void MAX30001::max30001SetInterrupts(uint32_t interrupts_to_set)
+{
+    _max30001RegWrite(EN_INT, interrupts_to_set);
+    delay(100);
+    //_max30001Synch();
+    // delay(100);
+}
+
+int secg_counter = 0;
+int sbioz_counter = 0;
+
+void MAX30001::_max30001ReadECGFIFO(int num_bytes)
+{
+    uint8_t spiTxBuff;
+    unsigned long uecgtemp;
+    signed long secgtemp;
+
+    SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
+
+    digitalWrite(_cs_pin, LOW);
+
+    spiTxBuff = (ECG_FIFO_BURST << 1) | RREG;
+    SPI.transfer(spiTxBuff); // Send register location
+
+    for (int i = 0; i < num_bytes; i++)
+    {
+        _readBufferECG[i] = SPI.transfer(0x00);
+    }
+
+    digitalWrite(_cs_pin, HIGH);
+
+    SPI.endTransaction();
+
+    secg_counter = 0;
+    unsigned char ecg_etag;
+
+    for (int i = 0; i < num_bytes; i += 3)
+    {
+        // Get etag
+        ecg_etag = ((((unsigned char)_readBufferECG[i + 2]) & 0x38) >> 3);
+        //Serial.println(ecg_etag, HEX);
+
+        if (ecg_etag == 0x00)   //Valid sample 
+        {
+            // uecgtemp=(unsigned long)((unsigned long)readBuffer[i]<<16 |(unsigned long)readBuffer[i+1]<<8| (unsigned long)(readBuffer[i+2]&0xC0));
+            uecgtemp = (unsigned long)(((unsigned long)_readBufferECG[i] << 16 | (unsigned long)_readBufferECG[i + 1] << 8) | (unsigned long)(_readBufferECG[i+2]&0xC0));
+            uecgtemp = (unsigned long)(uecgtemp << 8);
+
+            secgtemp = (signed long)uecgtemp;
+            secgtemp = (signed long)secgtemp >> 8;
+
+            s32ECGData[secg_counter++] = secgtemp;
+        }
+        else if (ecg_etag == 0x07)  //FIFO Overflow
+        {
+            //Serial.println("OVF");
+            _max30001FIFOReset();
+        }
+    }
+
+    //Serial.print("F");
+    //Serial.println(secg_counter);
+
+    ecgSamplesAvailable = secg_counter ;
+    secg_counter = 0;
+
+}
+
+void MAX30001::_max30001ReadBIOZFIFO(int num_bytes)
+{
+    uint8_t spiTxBuff;
+    unsigned long ubioztemp;
+    signed long sbioztemp;
+
+    SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
+
+    digitalWrite(_cs_pin, LOW);
+
+    spiTxBuff = (BIOZ_FIFO_BURST << 1) | RREG;
+    SPI.transfer(spiTxBuff); // Send register location
+
+    for (int i = 0; i < num_bytes; i++)
+    {
+        _readBufferBIOZ[i] = SPI.transfer(0x00);
+    }
+
+    digitalWrite(_cs_pin, HIGH);
+
+    SPI.endTransaction();
+
+    sbioz_counter = 0;
+    unsigned char bioz_etag;
+
+    for (int i = 0; i < num_bytes; i += 3)
+    {
+        // Get etag
+        bioz_etag = ((((unsigned char)_readBufferBIOZ[i + 2]) & 0x38) >> 3);
+        //Serial.println(ecg_etag, HEX);
+
+        if (bioz_etag == 0x00)   //Valid sample 
+        {
+            // uecgtemp=(unsigned long)((unsigned long)readBuffer[i]<<16 |(unsigned long)readBuffer[i+1]<<8| (unsigned long)(readBuffer[i+2]&0xC0));
+            ubioztemp = (unsigned long)(((unsigned long)_readBufferBIOZ[i] << 16 | (unsigned long)_readBufferBIOZ[i + 1] << 8) | (unsigned long)(_readBufferBIOZ[i+2]&0xC0));
+            ubioztemp = (unsigned long)(ubioztemp << 8);
+
+            sbioztemp = (signed long)ubioztemp;
+            sbioztemp = (signed long)sbioztemp >> 8;
+
+            s32BIOZData[sbioz_counter++] = sbioztemp;
+        }
+        else if (bioz_etag == 0x07)  //FIFO Overflow
+        {
+            //Serial.println("OVF");
+            _max30001FIFOReset();
+        }
+    }
+
+    biozSamplesAvailable = sbioz_counter ;
+    sbioz_counter = 0;
+}
+
+void MAX30001::max30001ServiceAllInterrupts(void)
+{
+    static uint32_t InitReset = 0;
+    int fifo_num_bytes = 0;
+
+    max30001_mngr_int_t mngr_int;
+
+    _max30001RegRead24(STATUS, &global_status.all);
+
+    if (global_status.bit.eint == 1) // EINT bit is set. FIFO is full
+    {
+        // Read the number of bytes in FIFO (from  MNGR_INT register)
+        _max30001RegRead24(MNGR_INT, &mngr_int.all);
+        fifo_num_bytes = (mngr_int.bit.e_fit + 1) * 3;
+
+        _max30001ReadECGFIFO(fifo_num_bytes);
+    }
+
+    if(global_status.bit.bint==1) //BIOZ FIFO is full
+    {
+        _max30001RegRead24(MNGR_INT, &mngr_int.all);
+        fifo_num_bytes = (mngr_int.bit.b_fit + 1) * 3;
+
+        // Read BIOZ FIFO in Burst mode
+        _max30001ReadBIOZFIFO(fifo_num_bytes);
+
+    }    
 }
