@@ -5,9 +5,14 @@
 // | |  | | | (_) | || (_) | \__/\  __/ | | | |_| | | (_| | |
 // \_|  |_|  \___/ \__\___/ \____/\___|_| |_|\__|_|  \__,_|_|
 
-//////////////////////////////////////////////////////////////////////////////////////////
-//
-//  Demo code for the MAX30001 breakout board
+/* 
+
+*** Example code for MAX30001 ECG breakout board ***
+
+This example assumes that the MAX30001 is used for monitoring ECG and Respiation signals. The BioZ channel 
+is used for respiration measurement and connected accordingly on the breakout board. 
+
+*/
 //
 //  Arduino connections:
 //
@@ -34,6 +39,7 @@
 //  For information on how to use, visit https://github.com/Protocentral/protocentral-max30001-arduino
 //
 /////////////////////////////////////////////////////////////////////////////////////////
+
 
 #include <SPI.h>
 #include "protocentral_max30001.h"
@@ -175,25 +181,53 @@ void MAX30001::BeginECGOnly()
 
 void MAX30001::BeginECGBioZ()
 {
-     max30001_cnfg_bmux_t cnfg_bmux;
-     max30001_cnfg_bioz_t cnfg_bioz;
+    max30001_cnfg_gen_t cnfg_gen;
+    max30001_cnfg_emux_t cnfg_emux;
+    max30001_cnfg_ecg_t cnfg_ecg;
+    max30001_cnfg_bmux_t cnfg_bmux;
+    max30001_cnfg_bioz_t cnfg_bioz;
 
     _max30001SwReset();
     delay(100);
 
-    _max30001RegWrite(CNFG_GEN, 0xC0004); // ECG & BioZ Enabled , FMSTR = 32768
+    cnfg_gen.bit.en_ulp_lon=0;  //ULP Lead-ON Disabled
+    cnfg_gen.bit.fmstr = 0b00;
+    cnfg_gen.bit.en_ecg = 0b1;
+    cnfg_gen.bit.en_bioz = 0b1;
+
+    cnfg_gen.bit.en_bloff = 0x00; // BioZ digital lead off detection disabled
+    cnfg_gen.bit.en_dcloff=0x00;// DC Lead-Off Detection Disabled
+    cnfg_gen.bit.en_rbias=0b00; // RBias disabled
+    cnfg_gen.bit.rbiasv= 0b01; // RBias =100 Mohm
+    cnfg_gen.bit.rbiasp= 0b00; // RBias Positive Input not connected
+    cnfg_gen.bit.rbiasn= 0b00; // RBias Negative Input not connected
+
+    _max30001RegWrite(CNFG_GEN, cnfg_gen.all);
+    //_max30001RegWrite(CNFG_GEN, 0xC0004); // ECG & BioZ Enabled , FMSTR = 32768
     delay(100);
+
     //_max30001RegWrite(CNFG_CAL, 0x720000); // Calibration sources disabled
     
     _max30001RegWrite(CNFG_CAL, 0x702000); // Calibration sources disabled
     delay(100);
 
+    cnfg_emux.bit.openp = 0;
+    cnfg_emux.bit.openn = 0;
+    cnfg_emux.bit.pol = 0;
+    cnfg_emux.bit.calp_sel = 0;
+    cnfg_emux.bit.caln_sel = 0;
+
     //_max30001RegWrite(CNFG_EMUX, 0x0B0000); // Pins internally connection to ECG Channels
-    _max30001RegWrite(CNFG_EMUX, 0x00); // Pins internally connection to ECG Channels
+    _max30001RegWrite(CNFG_EMUX, cnfg_emux.all); // Pins internally connection to ECG Channels
     delay(100);
 
-    //_max30001RegWrite(CNFG_ECG, 0x825000); // ECG_RATE: 125 SPS,
-    _max30001RegWrite(CNFG_ECG, 0x835000);
+    cnfg_ecg.bit.rate = 0b10;   //Default, 128SPS
+    cnfg_ecg.bit.gain = 0b11;   // 160 V/V
+    cnfg_ecg.bit.dhpf = 0b1;    // 0.5Hz
+    cnfg_ecg.bit.dlpf = 0b01;   // 40Hz
+
+    //_max30001RegWrite(CNFG_ECG, 0x835000);
+    _max30001RegWrite(CNFG_ECG, cnfg_ecg.all);
     delay(100);
 
     cnfg_bmux.bit.openp = 0;

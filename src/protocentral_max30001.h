@@ -167,6 +167,34 @@ typedef union max30001_status_reg
 } max30001_status_t;
 
 /**
+ * @brief CNFG_GEN (0x10)
+ */
+typedef union max30001_cnfg_gen_reg
+{
+  uint32_t all;
+  struct
+  {
+    uint32_t rbiasn : 1;
+    uint32_t rbiasp : 1;
+    uint32_t rbiasv : 2;
+    uint32_t en_rbias : 2;
+    uint32_t vth : 2;
+    uint32_t imag : 3;
+    uint32_t ipol : 1;
+    uint32_t en_dcloff : 2;
+    uint32_t en_bloff : 2;
+    uint32_t reserved1 : 1;
+    uint32_t en_pace : 1;
+    uint32_t en_bioz : 1;
+    uint32_t en_ecg : 1;
+    uint32_t fmstr : 2;
+    uint32_t en_ulp_lon : 2;
+    uint32_t reserved : 8;
+  } bit;
+
+} max30001_cnfg_gen_t;
+
+/**
  * @brief MNGR_INT (0x04)
  */
 typedef union max30001_mngr_int_reg
@@ -192,6 +220,47 @@ typedef union max30001_mngr_int_reg
   } bit;
 
 } max30001_mngr_int_t;
+
+/**
+ * @brief CNFG_EMUX  (0x14)
+ */
+typedef union max30001_cnfg_emux_reg
+{
+  uint32_t all;
+  struct
+  {
+    uint32_t reserved1 : 16;
+    uint32_t caln_sel : 2;
+    uint32_t calp_sel : 2;
+    uint32_t openn : 1;
+    uint32_t openp : 1;
+    uint32_t reserved2 : 1;
+    uint32_t pol : 1;
+    uint32_t reserved : 8;
+  } bit;
+
+} max30001_cnfg_emux_t;
+
+/**
+ * @brief CNFG_ECG   (0x15)
+ */
+typedef union max30001_cnfg_ecg_reg
+{
+  uint32_t all;
+  struct
+  {
+    uint32_t reserved1 : 12;
+    uint32_t dlpf : 2;
+    uint32_t dhpf : 1;
+    uint32_t reserved2 : 1;
+    uint32_t gain : 2;
+    uint32_t reserved3 : 4;
+    uint32_t rate : 2;
+
+    uint32_t reserved : 8;
+  } bit;
+
+} max30001_cnfg_ecg_t;
 
 /**
  * @brief CNFG_BMUX   (0x17)
@@ -242,6 +311,46 @@ typedef union max30001_bioz_reg
   } bit;
 
 } max30001_cnfg_bioz_t;
+
+/**
+ * @brief CNFG_RTOR1   (0x1D)
+ */
+typedef union max30001_cnfg_rtor1_reg
+{
+  uint32_t all;
+  struct
+  {
+    uint32_t reserved1 : 8;
+    uint32_t ptsf : 4;
+    uint32_t pavg : 2;
+    uint32_t reserved2 : 1;
+    uint32_t en_rtor : 1;
+    uint32_t gain : 4;
+    uint32_t wndw : 4;
+    uint32_t reserved : 8;
+  } bit;
+
+} max30001_cnfg_rtor1_t;
+
+/**
+ * @brief CNFG_RTOR2 (0x1E)
+ */
+typedef union max30001_cnfg_rtor2_reg
+{
+  uint32_t all;
+  struct
+  {
+    uint32_t reserved1 : 8;
+    uint32_t rhsf : 3;
+    uint32_t reserved2 : 1;
+    uint32_t ravg : 2;
+    uint32_t reserved3 : 2;
+    uint32_t hoff : 6;
+    uint32_t reserved4 : 2;
+    uint32_t reserved : 8;
+  } bit;
+
+} max30001_cnfg_rtor2_t;
 
 typedef enum
 {
