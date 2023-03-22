@@ -108,8 +108,8 @@ void setup()
 {
   Serial.begin(57600); // Serial begin
 
-  pinMode(MAX30001_CS_PIN, OUTPUT);
-  digitalWrite(MAX30001_CS_PIN, HIGH);
+  //pinMode(MAX30001_CS_PIN, OUTPUT);
+  //digitalWrite(MAX30001_CS_PIN, HIGH);
 
   SPI.begin();
 
@@ -149,5 +149,4 @@ void loop()
     }
     max30001.ecgSamplesAvailable = 0;
   }
-  
 }

@@ -1,5 +1,5 @@
 {
-    "port": "/dev/tty.usbmodem1401",
+    "port": "/dev/tty.usbmodem11201",
     "board": "arduino:avr:uno",
     "sketch": "examples/Example2-Interrupt-Driven/Example2-Interrupt-Driven.ino"
 }
