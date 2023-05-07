@@ -373,7 +373,12 @@ void MAX30001::begin(bool en_bioz, bool en_rtor)
         cnfg_rtor1.bit.gain = 0b1111; // Auto scale
         cnfg_rtor1.bit.en_rtor = 0b1; // Enabled R-R detector
         cnfg_rtor1.bit.pavg = 0x10; //8
-        cnfg_rtor1.bit.ptsf = 0b0011
+        cnfg_rtor1.bit.ptsf = 0b0011; // default: 4/16
+
+        _max30001RegWrite(CNFG_RTOR1, cnfg_rtor1.all);
+        delay(100);
+
+        
     }
 
     _max30001RegWrite(MNGR_INT, 0x7B0000); // EFIT=16, BFIT=8
