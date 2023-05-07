@@ -372,13 +372,18 @@ void MAX30001::begin(bool en_bioz, bool en_rtor)
         cnfg_rtor1.bit.wndw = 0b0011; // 12
         cnfg_rtor1.bit.gain = 0b1111; // Auto scale
         cnfg_rtor1.bit.en_rtor = 0b1; // Enabled R-R detector
-        cnfg_rtor1.bit.pavg = 0x10; //8
+        cnfg_rtor1.bit.pavg = 0b10;   // 8
         cnfg_rtor1.bit.ptsf = 0b0011; // default: 4/16
 
         _max30001RegWrite(CNFG_RTOR1, cnfg_rtor1.all);
         delay(100);
 
-        
+        cnfg_rtor2.bit.hoff = 0b100000; // Min Hold off
+        cnfg_rtor2.bit.ravg = 0b10;
+        cnfg_rtor2.bit.rhsf = 0b100; // R-R Int holdoff scaling factor
+
+        _max30001RegWrite(CNFG_RTOR2, cnfg_rtor2.all);
+        delay(100);
     }
 
     _max30001RegWrite(MNGR_INT, 0x7B0000); // EFIT=16, BFIT=8
@@ -480,7 +485,7 @@ signed long MAX30001::getBioZSamples(void)
     return bioz_data;
 }
 
-void MAX30001::getHRandRR(void)
+void MAX30001::getRToR(void)
 {
     uint8_t regReadBuff[4];
     _max30001RegRead(RTOR, regReadBuff);
@@ -494,7 +499,7 @@ void MAX30001::getHRandRR(void)
     heartRate = (unsigned int)hr;
 
     unsigned int RR = (unsigned int)rtor * (7.8125); // 8ms
-    RRinterval = RR;
+    RtoR_ms = RR;
 }
 
 void MAX30001::max30001SetInterrupts(uint32_t interrupts_to_set)
@@ -643,4 +648,10 @@ void MAX30001::max30001ServiceAllInterrupts(void)
         // Read BIOZ FIFO in Burst mode
         _max30001ReadBIOZFIFO(fifo_num_bytes);
     }
+
+    /*if (global_status.bit.rrint == 1) // RR detected
+    {
+        getRToR();
+        rrAvailable = true;
+    }*/
 }

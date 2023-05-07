@@ -364,12 +364,13 @@ class MAX30001
 public:
   MAX30001(int cs_pin);
   unsigned int heartRate;
-  unsigned int RRinterval;
+  unsigned int RtoR_ms;
   signed long ecg_data;
   signed long bioz_data;
 
   volatile int ecgSamplesAvailable;
   volatile int biozSamplesAvailable;
+  volatile bool rrAvailable;
   signed long s32ECGData[128];
   signed long s32BIOZData[128];
 
@@ -381,7 +382,7 @@ public:
 
   signed long getECGSamples(void);
   signed long getBioZSamples(void);
-  void getHRandRR(void);
+  void getRToR(void);
 
   bool max30001ReadInfo(void);
   void max30001SetsamplingRate(uint16_t samplingRate);
