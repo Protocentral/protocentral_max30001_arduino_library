@@ -500,6 +500,8 @@ void MAX30001::getRToR(void)
 
     unsigned int RR = (unsigned int)rtor * (7.8125); // 8ms
     RtoR_ms = RR;
+    Serial.print(hr);
+    Serial.print(" ");
 }
 
 void MAX30001::max30001SetInterrupts(uint32_t interrupts_to_set)
@@ -649,9 +651,9 @@ void MAX30001::max30001ServiceAllInterrupts(void)
         _max30001ReadBIOZFIFO(fifo_num_bytes);
     }
 
-    /*if (global_status.bit.rrint == 1) // RR detected
+    if (global_status.bit.rrint == 1) // RR detected
     {
         getRToR();
         rrAvailable = true;
-    }*/
+    }
 }
