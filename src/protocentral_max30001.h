@@ -377,6 +377,8 @@ public:
   void BeginECGBioZ();
   void BeginRtoRMode();
 
+  void begin(bool en_bioz, bool en_rtor);
+
   signed long getECGSamples(void);
   signed long getBioZSamples(void);
   void getHRandRR(void);
