@@ -105,6 +105,8 @@ bool BioZSkipSample = false;
 void setup()
 {
   Serial.begin(57600); // Serial begin
+  //SPI.begin();
+   
 
   SPI.begin(10,8,7,20);
 

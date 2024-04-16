@@ -220,12 +220,12 @@ void MAX30001::BeginECGBioZ()
     cnfg_bioz.bit.ahpf = 0b010;
     cnfg_bioz.bit.ext_rbias = 0x00;
     cnfg_bioz.bit.ln_bioz=1;
-    cnfg_bioz.bit.gain = 0b10;
+    cnfg_bioz.bit.gain = 0b01;//0b10;
     cnfg_bioz.bit.dhpf = 0b01;
     cnfg_bioz.bit.dlpf = 0x01;
     cnfg_bioz.bit.fcgen = 0b100;
     cnfg_bioz.bit.cgmon = 0x00;
-    cnfg_bioz.bit.cgmag = 0b011;
+    cnfg_bioz.bit.cgmag = 0b111;//0b011;
     cnfg_bioz.bit.phoff = 0x0000;
 
     //_max30001RegWrite(CNFG_BIOZ, 0x201433); // BioZ Rate: 64 SPS | Current generator: 32 uA
