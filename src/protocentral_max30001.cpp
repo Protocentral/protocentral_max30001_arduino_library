@@ -185,7 +185,6 @@ void MAX30001::BeginECGBioZ()
     max30001_cnfg_ecg_t cnfg_ecg;
     max30001_cnfg_bmux_t cnfg_bmux;
     max30001_cnfg_bioz_t cnfg_bioz;
-
     
     // CONFIG GEN Register Settings
     cnfg_gen.bit.en_ulp_lon = 0; // ULP Lead-ON Disabled
@@ -198,7 +197,6 @@ void MAX30001::BeginECGBioZ()
     cnfg_gen.bit.rbiasv = 0b01;    // RBias =100 Mohm
     cnfg_gen.bit.rbiasp = 0b00;    // RBias Positive Input not connected
     cnfg_gen.bit.rbiasn = 0b00;    // RBias Negative Input not connected
-    
 
     // ECG Config Settings
     cnfg_ecg.bit.rate = 0b10; // Default, 128SPS
