@@ -5,12 +5,12 @@
 // | |  | | | (_) | || (_) | \__/\  __/ | | | |_| | | (_| | |
 // \_|  |_|  \___/ \__\___/ \____/\___|_| |_|\__|_|  \__,_|_|
 
-/* 
+/*
 
 *** Example code for MAX30001 ECG breakout board ***
 
-This example assumes that the MAX30001 is used for monitoring ECG and Respiation signals. The BioZ channel 
-is used for respiration measurement and connected accordingly on the breakout board. 
+This example assumes that the MAX30001 is used for monitoring ECG and Respiation signals. The BioZ channel
+is used for respiration measurement and connected accordingly on the breakout board.
 
 */
 //
@@ -39,7 +39,6 @@ is used for respiration measurement and connected accordingly on the breakout bo
 //  For information on how to use, visit https://github.com/Protocentral/protocentral-max30001-arduino
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-
 
 #include <SPI.h>
 #include "protocentral_max30001.h"
@@ -186,92 +185,91 @@ void MAX30001::BeginECGBioZ()
     max30001_cnfg_ecg_t cnfg_ecg;
     max30001_cnfg_bmux_t cnfg_bmux;
     max30001_cnfg_bioz_t cnfg_bioz;
-
-    _max30001SwReset();
-    delay(100);
-
-    cnfg_gen.bit.en_ulp_lon=0;  //ULP Lead-ON Disabled
+    
+    // CONFIG GEN Register Settings
+    cnfg_gen.bit.en_ulp_lon = 0; // ULP Lead-ON Disabled
     cnfg_gen.bit.fmstr = 0b00;
     cnfg_gen.bit.en_ecg = 0b1;
     cnfg_gen.bit.en_bioz = 0b1;
+    cnfg_gen.bit.en_bloff = 0x00;  // BioZ digital lead off detection disabled
+    cnfg_gen.bit.en_dcloff = 0x00; // DC Lead-Off Detection Disabled
+    cnfg_gen.bit.en_rbias = 0b00;  // RBias disabled
+    cnfg_gen.bit.rbiasv = 0b01;    // RBias =100 Mohm
+    cnfg_gen.bit.rbiasp = 0b00;    // RBias Positive Input not connected
+    cnfg_gen.bit.rbiasn = 0b00;    // RBias Negative Input not connected
 
-    cnfg_gen.bit.en_bloff = 0x00; // BioZ digital lead off detection disabled
-    cnfg_gen.bit.en_dcloff=0x00;// DC Lead-Off Detection Disabled
-    cnfg_gen.bit.en_rbias=0b00; // RBias disabled
-    cnfg_gen.bit.rbiasv= 0b01; // RBias =100 Mohm
-    cnfg_gen.bit.rbiasp= 0b00; // RBias Positive Input not connected
-    cnfg_gen.bit.rbiasn= 0b00; // RBias Negative Input not connected
-
-    _max30001RegWrite(CNFG_GEN, cnfg_gen.all);
-    //_max30001RegWrite(CNFG_GEN, 0xC0004); // ECG & BioZ Enabled , FMSTR = 32768
-    delay(100);
-
-    //_max30001RegWrite(CNFG_CAL, 0x720000); // Calibration sources disabled
+    // ECG Config Settings
+    cnfg_ecg.bit.rate = 0b10; // Default, 128SPS
+    cnfg_ecg.bit.gain = 0b10; // 160 V/V
+    cnfg_ecg.bit.dhpf = 0b1;  // 0.5Hz
+    cnfg_ecg.bit.dlpf = 0b01; // 40Hz
     
-    _max30001RegWrite(CNFG_CAL, 0x702000); // Calibration sources disabled
-    delay(100);
-
+    // ECG MUX Settings
     cnfg_emux.bit.openp = 0;
     cnfg_emux.bit.openn = 0;
     cnfg_emux.bit.pol = 0;
     cnfg_emux.bit.calp_sel = 0;
     cnfg_emux.bit.caln_sel = 0;
 
-    //_max30001RegWrite(CNFG_EMUX, 0x0B0000); // Pins internally connection to ECG Channels
-    _max30001RegWrite(CNFG_EMUX, cnfg_emux.all); // Pins internally connection to ECG Channels
-    delay(100);
-
-    cnfg_ecg.bit.rate = 0b10;   //Default, 128SPS
-    cnfg_ecg.bit.gain = 0b11;   // 160 V/V
-    cnfg_ecg.bit.dhpf = 0b1;    // 0.5Hz
-    cnfg_ecg.bit.dlpf = 0b01;   // 40Hz
-
-    //_max30001RegWrite(CNFG_ECG, 0x835000);
-    _max30001RegWrite(CNFG_ECG, cnfg_ecg.all);
-    delay(100);
-
-    cnfg_bmux.bit.openp = 0;
-    cnfg_bmux.bit.openn = 0;
-    cnfg_bmux.bit.calp_sel = 0x00;  // No cal signal on BioZ
-    cnfg_bmux.bit.caln_sel = 0x00;  // No cal signal on BioZ
-    cnfg_bmux.bit.cg_mode = 0x00;   // Unchopped
-    cnfg_bmux.bit.en_bist=0;
-    cnfg_bmux.bit.rnom=0x00;
-    cnfg_bmux.bit.rmod=0x04;
-    cnfg_bmux.bit.fbist=0;
-
-    _max30001RegWrite(CNFG_BMUX, cnfg_bmux.all); 
-    delay(100);
-
-    //_max30001RegWrite(CNFG_BMUX, 0x000040); // Pins connected internally to BioZ channels
-    //delay(100);
-
-     // Set MAX30001G specific BioZ LC
-    _max30001RegWrite(CNFG_BIOZ_LC, 0x800000); // Turn OFF low current mode
-    delay(100);
-
+    // BioZ Config Settings
     cnfg_bioz.bit.rate = 0;
     cnfg_bioz.bit.ahpf = 0b010;
     cnfg_bioz.bit.ext_rbias = 0x00;
-    cnfg_bioz.bit.ln_bioz=1;
-    cnfg_bioz.bit.gain = 0b10;
-    cnfg_bioz.bit.dhpf = 0b01;
+    cnfg_bioz.bit.ln_bioz = 1;
+    cnfg_bioz.bit.gain = 0b01; //(20 V/V)
+    cnfg_bioz.bit.dhpf = 0b010;
     cnfg_bioz.bit.dlpf = 0x01;
-    cnfg_bioz.bit.fcgen = 0b100;
+    cnfg_bioz.bit.fcgen = 0b0100;
     cnfg_bioz.bit.cgmon = 0x00;
-    cnfg_bioz.bit.cgmag = 0b011;
-    cnfg_bioz.bit.phoff = 0x0000;
+    cnfg_bioz.bit.cgmag = 0b100;
+    cnfg_bioz.bit.phoff = 0x0011;
 
-    //_max30001RegWrite(CNFG_BIOZ, 0x201433); // BioZ Rate: 64 SPS | Current generator: 32 uA
-    _max30001RegWrite(CNFG_BIOZ, cnfg_bioz.all); 
-    delay(100);
+    // BioZ MUX Settings
+    cnfg_bmux.bit.openp = 0;
+    cnfg_bmux.bit.openn = 0;
+    cnfg_bmux.bit.calp_sel = 0x00; // No cal signal on BioZ
+    cnfg_bmux.bit.caln_sel = 0x00; // No cal signal on BioZ
+    cnfg_bmux.bit.cg_mode = 0x00;  // Unchopped
+    cnfg_bmux.bit.en_bist = 0;
+    cnfg_bmux.bit.rnom = 0x00;
+    cnfg_bmux.bit.rmod = 0x04;
+    cnfg_bmux.bit.fbist = 0;
 
-    _max30001RegWrite(MNGR_INT, 0x7B0000); // EFIT=16, BFIT=8
-    delay(100);
+    //_max30001RegWrite(MNGR_INT, 0x7B0000); // EFIT=16, BFIT=8
+    // delay(100);
 
-    //max30001SetInterrupts(EN_EINT | 0x01); // Enable ECG Interrupts
+    // max30001SetInterrupts(EN_EINT | 0x01); // Enable ECG Interrupts
 
     //_max30001RegWrite(CNFG_RTOR1,0x3fc600);
+
+    /* ****IMPORTANT: Write all registers in the same sequence**** */
+
+    _max30001SwReset();
+    delay(100);
+
+    _max30001RegWrite(CNFG_GEN, cnfg_gen.all);
+    //_max30001RegWrite(CNFG_GEN, 0xC0004); // ECG & BioZ Enabled , FMSTR = 32768
+    delay(100);
+
+    _max30001RegWrite(CNFG_CAL, 0x720000); // Calibration sources disabled
+    delay(100);
+
+    _max30001RegWrite(CNFG_ECG, cnfg_ecg.all);
+    delay(100);
+
+    _max30001RegWrite(CNFG_EMUX, cnfg_emux.all); // Pins internally connection to ECG Channels
+    delay(100);
+
+    _max30001RegWrite(CNFG_BIOZ, cnfg_bioz.all);
+    //_max30001RegWrite(CNFG_BIOZ, 0x201433); // BioZ Rate: 64 SPS | Current generator: 32 uA
+
+    // Set MAX30001G specific BioZ LC
+    _max30001RegWrite(CNFG_BIOZ_LC, 0x800000); // Turn OFF low current mode
+    delay(100);
+
+    _max30001RegWrite(CNFG_BMUX, 0x000040); // Pins connected internally to BioZ channels
+    delay(100);
+
     _max30001Synch();
     delay(100);
 }
@@ -422,12 +420,12 @@ void MAX30001::_max30001ReadECGFIFO(int num_bytes)
     {
         // Get etag
         ecg_etag = ((((unsigned char)_readBufferECG[i + 2]) & 0x38) >> 3);
-        //Serial.println(ecg_etag, HEX);
+        // Serial.println(ecg_etag, HEX);
 
-        if (ecg_etag == 0x00)   //Valid sample 
+        if (ecg_etag == 0x00) // Valid sample
         {
             // uecgtemp=(unsigned long)((unsigned long)readBuffer[i]<<16 |(unsigned long)readBuffer[i+1]<<8| (unsigned long)(readBuffer[i+2]&0xC0));
-            uecgtemp = (unsigned long)(((unsigned long)_readBufferECG[i] << 16 | (unsigned long)_readBufferECG[i + 1] << 8) | (unsigned long)(_readBufferECG[i+2]&0xC0));
+            uecgtemp = (unsigned long)(((unsigned long)_readBufferECG[i] << 16 | (unsigned long)_readBufferECG[i + 1] << 8) | (unsigned long)(_readBufferECG[i + 2] & 0xC0));
             uecgtemp = (unsigned long)(uecgtemp << 8);
 
             secgtemp = (signed long)uecgtemp;
@@ -435,19 +433,18 @@ void MAX30001::_max30001ReadECGFIFO(int num_bytes)
 
             s32ECGData[secg_counter++] = secgtemp;
         }
-        else if (ecg_etag == 0x07)  //FIFO Overflow
+        else if (ecg_etag == 0x07) // FIFO Overflow
         {
-            //Serial.println("OVF");
+            // Serial.println("OVF");
             _max30001FIFOReset();
         }
     }
 
-    //Serial.print("F");
-    //Serial.println(secg_counter);
+    // Serial.print("F");
+    // Serial.println(secg_counter);
 
-    ecgSamplesAvailable = secg_counter ;
+    ecgSamplesAvailable = secg_counter;
     secg_counter = 0;
-
 }
 
 void MAX30001::_max30001ReadBIOZFIFO(int num_bytes)
@@ -479,12 +476,12 @@ void MAX30001::_max30001ReadBIOZFIFO(int num_bytes)
     {
         // Get etag
         bioz_etag = ((((unsigned char)_readBufferBIOZ[i + 2]) & 0x38) >> 3);
-        //Serial.println(ecg_etag, HEX);
+        // Serial.println(ecg_etag, HEX);
 
-        if (bioz_etag == 0x00)   //Valid sample 
+        if (bioz_etag == 0x00) // Valid sample
         {
             // uecgtemp=(unsigned long)((unsigned long)readBuffer[i]<<16 |(unsigned long)readBuffer[i+1]<<8| (unsigned long)(readBuffer[i+2]&0xC0));
-            ubioztemp = (unsigned long)(((unsigned long)_readBufferBIOZ[i] << 16 | (unsigned long)_readBufferBIOZ[i + 1] << 8) | (unsigned long)(_readBufferBIOZ[i+2]&0xC0));
+            ubioztemp = (unsigned long)(((unsigned long)_readBufferBIOZ[i] << 16 | (unsigned long)_readBufferBIOZ[i + 1] << 8) | (unsigned long)(_readBufferBIOZ[i + 2] & 0xC0));
             ubioztemp = (unsigned long)(ubioztemp << 8);
 
             sbioztemp = (signed long)ubioztemp;
@@ -492,14 +489,14 @@ void MAX30001::_max30001ReadBIOZFIFO(int num_bytes)
 
             s32BIOZData[sbioz_counter++] = sbioztemp;
         }
-        else if (bioz_etag == 0x07)  //FIFO Overflow
+        else if (bioz_etag == 0x07) // FIFO Overflow
         {
-            //Serial.println("OVF");
+            // Serial.println("OVF");
             _max30001FIFOReset();
         }
     }
 
-    biozSamplesAvailable = sbioz_counter ;
+    biozSamplesAvailable = sbioz_counter;
     sbioz_counter = 0;
 }
 
@@ -521,13 +518,12 @@ void MAX30001::max30001ServiceAllInterrupts(void)
         _max30001ReadECGFIFO(fifo_num_bytes);
     }
 
-    if(global_status.bit.bint==1) //BIOZ FIFO is full
+    if (global_status.bit.bint == 1) // BIOZ FIFO is full
     {
         _max30001RegRead24(MNGR_INT, &mngr_int.all);
         fifo_num_bytes = (mngr_int.bit.b_fit + 1) * 3;
 
         // Read BIOZ FIFO in Burst mode
         _max30001ReadBIOZFIFO(fifo_num_bytes);
-
-    }    
+    }
 }

@@ -1,5 +1,6 @@
 {
-    "port": "/dev/tty.usbmodem212301",
-    "board": "arduino:avr:uno",
-    "sketch": "examples/Example1-ECG-BioZ-stream-Openview/Example1-ECG-BioZ-stream-Openview.ino"
+    "port": "/dev/tty.usbmodem2101",
+    "board": "esp32:esp32:adafruit_qtpy_esp32c3",
+    "sketch": "examples/Example3-tinyECG-Openview/Example3-tinyECG-Openview.ino",
+    "configuration": "CDCOnBoot=cdc,PartitionScheme=default,CPUFreq=160,FlashMode=dout,FlashFreq=80,FlashSize=4M,UploadSpeed=115200,DebugLevel=none"
 }
