@@ -45,7 +45,6 @@
 #define DATASTREAM_SERVICE_UUID (uint16_t(0x1122))
 #define DATASTREAM_CHARACTERISTIC_UUID (uint16_t(0x1424))
 
-
 #define MAX30001_CS_PIN 20
 #define MAX30001_DELAY_SAMPLES 8 // Time between consecutive samples
 
@@ -76,7 +75,6 @@ uint32_t ecg_stream_cnt = 0;
 uint32_t resp_stream_cnt = 0;
 uint16_t ppg_stream_cnt = 0;
 float temp;
-
 
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
@@ -175,10 +173,10 @@ class MyCallbackHandler : public BLECharacteristicCallbacks
   }
 };
 
-void HealthyPi5_BLE_Init()
+void ble_init()
 {
-  BLEDevice::init("Healthypi 5");      // Create the BLE Device
-  pServer = BLEDevice::createServer(); // Create the BLE Server
+  BLEDevice::init("healthypi tinyecg"); // Create the BLE Device
+  pServer = BLEDevice::createServer();  // Create the BLE Server
   pServer->setCallbacks(new MyServerCallbacks());
 
   BLEService *HeartrateService = pServer->createService(Heartrate_SERVICE_UUID); // Create the BLE Service
@@ -203,7 +201,7 @@ void HealthyPi5_BLE_Init()
   // Start advertising
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(Heartrate_SERVICE_UUID);
-  
+
   pAdvertising->addServiceUUID(DATASTREAM_SERVICE_UUID);
   pAdvertising->setScanResponse(false);
   pAdvertising->setMinPreferred(0x00);
@@ -214,12 +212,11 @@ void HealthyPi5_BLE_Init()
 void setup()
 {
   Serial.begin(57600); // Serial begin
-  //SPI.begin();
-   
+  // SPI.begin();
 
-  SPI.begin(10,8,7,20);
+  SPI.begin(10, 8, 7, 20);
 
-  //SPI.
+  ble_init();
 
   bool ret = max30001.max30001ReadInfo();
   if (ret)
@@ -252,11 +249,8 @@ void handle_ble_stack()
     datastream_Characteristic->notify();
   }
 
-  
-
   if (1) //(spo2_calc_done)
   {
-    
 
     uint8_t hr_att_ble[5];
     hr_att_ble[0] = 0x00;
@@ -267,11 +261,7 @@ void handle_ble_stack()
 
     Heartrate_Characteristic->setValue(hr_att_ble, 5);
     Heartrate_Characteristic->notify();
-
-    
   }
-
-  
 
   // connecting
   if (deviceConnected && !oldDeviceConnected)
@@ -288,6 +278,33 @@ void handle_ble_stack()
   }
 }
 
+void setData(uint32_t ecg_sample, uint32_t bioz_sample, char resp_tag)
+{
+
+  ecg_data_buff[ecg_stream_cnt++] = (uint8_t)ecg_sample;
+  ecg_data_buff[ecg_stream_cnt++] = (uint8_t)(ecg_sample >> 8);
+  ecg_data_buff[ecg_stream_cnt++] = (uint8_t)(ecg_sample >> 16);
+  ecg_data_buff[ecg_stream_cnt++] = (uint8_t)(ecg_sample >> 24);
+
+  resp_data_buff[resp_stream_cnt++] = (uint8_t)bioz_sample;
+  resp_data_buff[resp_stream_cnt++] = (uint8_t)(bioz_sample >> 8);
+  resp_data_buff[resp_stream_cnt++] = (uint8_t)(bioz_sample >> 16);
+  resp_data_buff[resp_stream_cnt++] = (uint8_t)(bioz_sample >> 24);
+
+  resp_data_buff[resp_stream_cnt++] = resp_tag;
+
+  if (ecg_stream_cnt >= 38)
+  {
+    ecg_buf_ready = true;
+    ecg_stream_cnt = 0;
+  }
+
+  if (resp_stream_cnt >= 40)
+  {
+    resp_buf_ready = true;
+    resp_stream_cnt = 0;
+  }
+}
 
 void loop()
 {
@@ -297,13 +314,16 @@ void loop()
   {
     bioz_data = max30001.getBioZSamples();
     sendData(ecg_data, bioz_data, BioZSkipSample);
+    setData(ecg_data, bioz_data, 0x00);
     BioZSkipSample = true;
   }
   else
   {
     bioz_data = 0x00;
     sendData(ecg_data, bioz_data, BioZSkipSample);
+    setData(ecg_data, bioz_data, 0x01);
     BioZSkipSample = false;
   }
+  handle_ble_stack();
   delay(8);
 }
