@@ -6,18 +6,17 @@
 //    GUI URL: https://github.com/Protocentral/protocentral_openview.git
 //
 //    Arduino connections:
-//
-//  |MAX30001 pin label| Pin Function         |Arduino Connection|
-//  |----------------- |:--------------------:|-----------------:|
-//  | MISO             | Slave Out            |  D12             |
-//  | MOSI             | Slave In             |  D11             |
-//  | SCLK             | Serial Clock         |  D13             |
-//  | CS               | Chip Select          |  D7              |
-//  | VCC              | Digital VDD          |  +5V             |
-//  | GND              | Digital Gnd          |  Gnd             |
-//  | FCLK             | 32K CLOCK            |  -               |
-//  | INT1             | Interrupt1           |  02              |
-//  | INT2             | Interrupt2           |  -               |
+//  |MAX30001 pin label| Pin Function         |Arduino Connection|ESP32 Connection|
+//  |----------------- |:--------------------:|-----------------:|---------------:|
+//  | MISO             | Slave Out            |  D12             |  19            |
+//  | MOSI             | Slave In             |  D11             |  23            |
+//  | SCLK             | Serial Clock         |  D13             |  18            |
+//  | CS               | Chip Select          |  D7              |  5             |
+//  | VCC              | Digital VDD          |  +5V             |  +5V           |
+//  | GND              | Digital Gnd          |  Gnd             |  Gnd           |
+//  | FCLK             | 32K CLOCK            |  -               |  -             |
+//  | INT1             | Interrupt1           |  02              |  02            |
+//  | INT2             | Interrupt2           |  -               |  -             |
 //
 //    This software is licensed under the MIT License(http://opensource.org/licenses/MIT).
 //
@@ -29,12 +28,13 @@
 //
 //   For information on how to use, visit https://github.com/Protocentral/protocentral_max30001
 //
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 #include <SPI.h>
 #include "protocentral_max30001.h"
 
-#define MAX30001_CS_PIN 7
+#define MAX30001_CS_PIN 17
 #define MAX30001_DELAY_SAMPLES 8 // Time between consecutive samples
 
 #define CES_CMDIF_PKT_START_1 0x0A
@@ -107,7 +107,14 @@ void setup()
   Serial.begin(57600); // Serial begin
 
   SPI.begin();
-
+  Serial.print("\nMOSI: ");
+  Serial.println(MOSI);
+  Serial.print("MISO: ");
+  Serial.println(MISO);
+  Serial.print("SCK: ");
+  Serial.println(SCK);
+  Serial.print("SS: ");
+  Serial.println(SS);  
   bool ret = max30001.max30001ReadInfo();
   if (ret)
   {
@@ -145,5 +152,5 @@ void loop()
     sendData(ecg_data, bioz_data, BioZSkipSample);
     BioZSkipSample = false;
   }
-  delay(8);
+  delay(MAX30001_DELAY_SAMPLES);
 }
