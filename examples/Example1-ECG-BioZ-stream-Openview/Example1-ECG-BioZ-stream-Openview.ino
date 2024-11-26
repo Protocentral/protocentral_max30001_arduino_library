@@ -34,7 +34,7 @@
 #include <SPI.h>
 #include "protocentral_max30001.h"
 
-#define MAX30001_CS_PIN 17
+#define MAX30001_CS_PIN 7 // change this to 5 if using ESP32
 #define MAX30001_DELAY_SAMPLES 8 // Time between consecutive samples
 
 #define CES_CMDIF_PKT_START_1 0x0A
