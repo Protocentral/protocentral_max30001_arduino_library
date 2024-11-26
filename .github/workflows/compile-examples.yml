@@ -80,10 +80,7 @@ jobs:
           - fqbn: arduino:mbed_portenta:envie_m7
             platforms: |
               - name: arduino:mbed_portenta
-          - fqbn: arduino:mbed_portenta:envie_m4
-            platforms: |
-              - name: arduino:mbed_portenta
-            - fqbn: arduino:mbed_nano:nanorp2040connect
+          - fqbn: arduino:mbed_nano:nanorp2040connect
             platforms: |
               - name: arduino:mbed_nano
           - fqbn: arduino:mbed_edge:edge_control
@@ -91,11 +88,11 @@ jobs:
               - name: arduino:mbed_edge
 
           # Artemis / Apollo3
-            # https://github.com/sparkfun/Arduino_Apollo3/blob/main/boards.txt
-            - fqbn: SparkFun:apollo3:sfe_artemis_atp
-              platforms: |
-                - name: SparkFun:apollo3
-                  source-url: https://raw.githubusercontent.com/sparkfun/Arduino_Apollo3/master/package_sparkfun_apollo3_index.json
+          # https://github.com/sparkfun/Arduino_Apollo3/blob/main/boards.txt
+          - fqbn: SparkFun:apollo3:sfe_artemis_atp
+            platforms: |
+              - name: SparkFun:apollo3
+                source-url: https://raw.githubusercontent.com/sparkfun/Arduino_Apollo3/master/package_sparkfun_apollo3_index.json
 
           # ESP32
           # https://github.com/espressif/arduino-esp32/blob/master/boards.txt
