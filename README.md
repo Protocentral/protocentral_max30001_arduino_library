@@ -1,12 +1,12 @@
 [![Compile Examples](https://github.com/Protocentral/protocentral_max30001_arduino_library/workflows/Compile%20Examples/badge.svg)](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions?workflow=Compile+Examples)
 
 
-# ProtoCentral MAX30001 ECG and Bio-Impedance Breakout Board
+# Protocentral MAX30001 ECG and Bio-Impedance Breakout Board
 [![Compile Examples](https://github.com/Protocentral/protocentral_max30001_arduino_library/workflows/Compile%20Examples/badge.svg)](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions?workflow=Compile+Examples)
 
-![ProtoCentral MAX30001 Single-channel ECG breakout](assets/max30001_brk.jpg)
+![Protocentral MAX30001 Single-channel ECG breakout](assets/max30001_brk.jpg)
 
-If you dont already have one, you can buy [ProtoCentral MAX30001 breakout here.](https://protocentral.com/product/protocentral-max30001/)
+If you dont already have one, you can buy [Protocentral MAX30001 breakout here.](https://protocentral.com/product/protocentral-max30001/)
 
 
 MAX30001 is a single-lead ECG monitoring IC which has built-in R-R detection and several other features that make it perfect for a wearable single-lead ECG application.  
@@ -54,7 +54,7 @@ If you have correctly installed the libraries, the example sketeches should now 
 
 Open up your Arduino IDE and run the Arudino sketch (.ino) file in the archive that you downloaded. Your Arduino should now be programmed to read the ecg data and sending over the USB-UART.  
 
-# Using the ProtoCentral OpenView GUI
+# Using the Protocentral OpenView GUI
 
 The GUI for visualizing the ECG and Respiration as well as parameters like Heart rate and Respiration rate is written in Processing, based on Java and is cross-compilable across platforms.
 
@@ -62,7 +62,7 @@ The GUI for visualizing the ECG and Respiration as well as parameters like Heart
 
 Java 8 is required on all platforms for running the processing-based GUI application. You can download Java for your platform from the [Official Java website](https://www.java.com/en/download/).
 
-You can download and install [ProtoCentral OpenView from here](https://github.com/Protocentral/protocentral_openview).
+You can download and install [Protocentral OpenView from here](https://github.com/Protocentral/protocentral_openview).
 
 Once you have opened OpenView, make sure to select "MAX30001 breakout" under the "Select Board" dropdown. 
 
