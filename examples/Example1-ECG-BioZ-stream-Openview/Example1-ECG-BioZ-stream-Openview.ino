@@ -103,7 +103,7 @@ void setup()
 {
   Serial.begin(57600); // Serial begin
 
-  SPI.begin();
+  SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
 
   bool ret = max30001.max30001ReadInfo();
   if (ret)
@@ -141,5 +141,5 @@ void loop()
     sendData(ecg_data, bioz_data, BioZSkipSample);
     BioZSkipSample = false;
   }
-  delay(8);
+  delay(MAX30001_DELAY_SAMPLES);
 }

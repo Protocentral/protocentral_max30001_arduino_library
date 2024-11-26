@@ -43,8 +43,6 @@ is used for respiration measurement and connected accordingly on the breakout bo
 #include <SPI.h>
 #include "protocentral_max30001.h"
 
-#define MAX30001_SPI_SPEED 1000000
-
 MAX30001::MAX30001(int cs_pin)
 {
     _cs_pin = cs_pin;
