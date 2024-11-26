@@ -48,12 +48,11 @@ volatile char DataPacket[DATA_LEN];
 const char DataPacketFooter[2] = {ZERO, CES_CMDIF_PKT_STOP};
 const char DataPacketHeader[5] = {CES_CMDIF_PKT_START_1, CES_CMDIF_PKT_START_2, DATA_LEN, ZERO, CES_CMDIF_TYPE_DATA};
 
-uint8_t data_len = 0x0C;
-
 MAX30001 max30001(MAX30001_CS_PIN);
 
 signed long ecg_data;
 signed long bioz_data;
+bool BioZSkipSample = false;
 
 void sendData(signed long ecg_sample, signed long bioz_sample, bool _bioZSkipSample)
 {
@@ -100,13 +99,11 @@ void sendData(signed long ecg_sample, signed long bioz_sample, bool _bioZSkipSam
   }
 }
 
-bool BioZSkipSample = false;
-
 void setup()
 {
   Serial.begin(57600); // Serial begin
 
-  SPI.begin();
+  SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
 
   bool ret = max30001.max30001ReadInfo();
   if (ret)
@@ -132,7 +129,6 @@ void setup()
 void loop()
 {
   ecg_data = max30001.getECGSamples();
-  // max30001.getHRandRR();
   if (BioZSkipSample == false)
   {
     bioz_data = max30001.getBioZSamples();
@@ -145,5 +141,5 @@ void loop()
     sendData(ecg_data, bioz_data, BioZSkipSample);
     BioZSkipSample = false;
   }
-  delay(8);
+  delay(MAX30001_DELAY_SAMPLES);
 }

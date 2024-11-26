@@ -62,6 +62,8 @@
 
 #include <Arduino.h>
 
+#define MAX30001_SPI_SPEED 1000000
+
 #define WREG 0x00
 #define RREG 0x01
 

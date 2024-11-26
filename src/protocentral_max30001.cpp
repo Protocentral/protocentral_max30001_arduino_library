@@ -43,8 +43,6 @@ is used for respiration measurement and connected accordingly on the breakout bo
 #include <SPI.h>
 #include "protocentral_max30001.h"
 
-#define MAX30001_SPI_SPEED 1000000
-
 MAX30001::MAX30001(int cs_pin)
 {
     _cs_pin = cs_pin;
@@ -333,16 +331,18 @@ signed long MAX30001::getECGSamples(void)
     _max30001RegRead(ECG_FIFO, regReadBuff);
 
     unsigned long data0 = (unsigned long)(regReadBuff[0]);
-    data0 = data0 << 24;
+    data0 = data0 << 16;
     unsigned long data1 = (unsigned long)(regReadBuff[1]);
-    data1 = data1 << 16;
+    data1 = data1 << 8;
     unsigned long data2 = (unsigned long)(regReadBuff[2]);
-    data2 = data2 >> 6;
-    data2 = data2 & 0x03;
+    data2 = data2 & 0xC0;
 
     unsigned long data = (unsigned long)(data0 | data1 | data2);
-    ecg_data = (signed long)data;
-    return ecg_data;
+    data = (unsigned long)(data << 8);
+    signed long secgtemp = (signed long)(data);
+    secgtemp =(signed long) (secgtemp >> 14);
+
+    return secgtemp;
 }
 
 signed long MAX30001::getBioZSamples(void)
@@ -351,17 +351,20 @@ signed long MAX30001::getBioZSamples(void)
     _max30001RegRead(BIOZ_FIFO, regReadBuff);
 
     unsigned long data0 = (unsigned long)(regReadBuff[0]);
-    data0 = data0 << 24;
+    data0 = data0 << 16;
     unsigned long data1 = (unsigned long)(regReadBuff[1]);
-    data1 = data1 << 16;
+    data1 = data1 << 8;
     unsigned long data2 = (unsigned long)(regReadBuff[2]);
-    data2 = data2 >> 6;
-    data2 = data2 & 0x03;
+    data2 = data2 & 0xF0;
 
     unsigned long data = (unsigned long)(data0 | data1 | data2);
-    bioz_data = (signed long)(data);
-    return bioz_data;
+    data = (unsigned long)(data << 8);
+    signed long sbioztemp = (signed long)(data);
+    sbioztemp =(signed long) (sbioztemp >> 12);
+    
+    return sbioztemp;
 }
+
 
 void MAX30001::getHRandRR(void)
 {
