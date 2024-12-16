@@ -219,7 +219,7 @@ void MAX30001::BeginECGBioZ()
     cnfg_bioz.bit.dlpf = 0x01;
     cnfg_bioz.bit.fcgen = 0b0100;
     cnfg_bioz.bit.cgmon = 0x00;
-    cnfg_bioz.bit.cgmag = 0b100;
+    cnfg_bioz.bit.cgmag = 0b010;
     cnfg_bioz.bit.phoff = 0x0011;
 
     // BioZ MUX Settings
@@ -364,7 +364,6 @@ signed long MAX30001::getBioZSamples(void)
     
     return sbioztemp;
 }
-
 
 void MAX30001::getHRandRR(void)
 {

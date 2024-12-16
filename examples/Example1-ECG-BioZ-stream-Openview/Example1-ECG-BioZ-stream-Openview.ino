@@ -28,13 +28,12 @@
 //
 //   For information on how to use, visit https://github.com/Protocentral/protocentral_max30001
 //
-
 /////////////////////////////////////////////////////////////////////////////////////////
 
 #include <SPI.h>
 #include "protocentral_max30001.h"
 
-#define MAX30001_CS_PIN 17
+#define MAX30001_CS_PIN 7 // change this to 5 if using ESP32
 #define MAX30001_DELAY_SAMPLES 8 // Time between consecutive samples
 
 #define CES_CMDIF_PKT_START_1 0x0A
@@ -48,11 +47,12 @@ volatile char DataPacket[DATA_LEN];
 const char DataPacketFooter[2] = {ZERO, CES_CMDIF_PKT_STOP};
 const char DataPacketHeader[5] = {CES_CMDIF_PKT_START_1, CES_CMDIF_PKT_START_2, DATA_LEN, ZERO, CES_CMDIF_TYPE_DATA};
 
+uint8_t data_len = 0x0C;
+
 MAX30001 max30001(MAX30001_CS_PIN);
 
 signed long ecg_data;
 signed long bioz_data;
-bool BioZSkipSample = false;
 
 void sendData(signed long ecg_sample, signed long bioz_sample, bool _bioZSkipSample)
 {
@@ -98,6 +98,8 @@ void sendData(signed long ecg_sample, signed long bioz_sample, bool _bioZSkipSam
     Serial.write(DataPacketFooter[i]);
   }
 }
+
+bool BioZSkipSample = false;
 
 void setup()
 {

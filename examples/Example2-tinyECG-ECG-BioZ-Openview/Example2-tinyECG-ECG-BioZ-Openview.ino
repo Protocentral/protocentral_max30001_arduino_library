@@ -7,17 +7,17 @@
 //
 //    Arduino connections:
 //
-//  |MAX30001 pin label| Pin Function         |Arduino Connection|ESP32 Connection|
-//  |----------------- |:--------------------:|-----------------:|---------------:|
-//  | MISO             | Slave Out            |  D12             |  19            |
-//  | MOSI             | Slave In             |  D11             |  23            |
-//  | SCLK             | Serial Clock         |  D13             |  18            |
-//  | CS               | Chip Select          |  D7              |  5             |
-//  | VCC              | Digital VDD          |  +5V             |  +5V           |
-//  | GND              | Digital Gnd          |  Gnd             |  Gnd           |
-//  | FCLK             | 32K CLOCK            |  -               |  -             |
-//  | INT1             | Interrupt1           |  02              |  02            |
-//  | INT2             | Interrupt2           |  -               |  -             |
+//  |MAX30001 pin label| Pin Function         |Arduino Connection|
+//  |----------------- |:--------------------:|-----------------:|
+//  | MISO             | Slave Out            |  D12             |
+//  | MOSI             | Slave In             |  D11             |
+//  | SCLK             | Serial Clock         |  D13             |
+//  | CS               | Chip Select          |  D7              |
+//  | VCC              | Digital VDD          |  +5V             |
+//  | GND              | Digital Gnd          |  Gnd             |
+//  | FCLK             | 32K CLOCK            |  -               |
+//  | INT1             | Interrupt1           |  02              |
+//  | INT2             | Interrupt2           |  -               |
 //
 //    This software is licensed under the MIT License(http://opensource.org/licenses/MIT).
 //
