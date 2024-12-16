@@ -1,12 +1,9 @@
-[![Compile Examples](https://github.com/Protocentral/protocentral_max30001_arduino_library/workflows/Compile%20Examples/badge.svg)](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions?workflow=Compile+Examples)
-
-
 # Protocentral MAX30001 ECG and Bio-Impedance Breakout Board
 [![Compile Examples](https://github.com/Protocentral/protocentral_max30001_arduino_library/workflows/Compile%20Examples/badge.svg)](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions?workflow=Compile+Examples)
 
-![Protocentral MAX30001 Single-channel ECG breakout](assets/max30001_brk.jpg)
+## Don't have one? [Buy it here](https://protocentral.com/product/protocentral-max30001/)
 
-If you dont already have one, you can buy [Protocentral MAX30001 breakout here.](https://protocentral.com/product/protocentral-max30001/)
+![Protocentral MAX30001 Single-channel ECG breakout](assets/max30001_brk.jpg)
 
 
 MAX30001 is a single-lead ECG monitoring IC which has built-in R-R detection and several other features that make it perfect for a wearable single-lead ECG application.  
@@ -15,24 +12,9 @@ Several new features on this chip make it ideal for wearable applications. First
 
 The best feature of this chip though is the built-in R-R detection algorithm which can measure the time between successive peaks of the QRS complex of the ECG. This means that heart-computation comes right out of the box without any microcontroller-side code requirement. Heart-rate computation just got a lot easier !!
 
-# Features
+## Hardware Setup
 
-* MAX30001 IC on-board
-* Single-lead ECG monitoring
-* R-R peak detection for heart rate computation
-* High DC Offset range
-* Heart Rate computation using Pan-Tompkins algorithm
-* On-board level translator for 5V-tolerant operation
-* On-board low-noise 1.8V and 3.3V voltage regulator
-
-# Repository Contents
-
-* This repository contains only the Arduino library software
-* Hardware information (schematics, datasheets etc.) is at https://github.com/Protocentral/protocentral_max30001
-
-# Wiring the board to your Arduino
-
-If you have bought the breakout the connection with the Arduino board is as follows:
+Connection with the Arduino board is as follows:
 
 |MAX30001 pin label| Arduino Connection   |Pin Function      |
 |----------------- |:--------------------:|-----------------:|
@@ -43,41 +25,21 @@ If you have bought the breakout the connection with the Arduino board is as foll
 | FCLK             | NC                   |  External clock(32KHz)     |
 | INT1             | D2                   |  Interrupt        |
 | INT2             | NC                   |  Interrupt       |
-| 3V3              | Supply               |  Board which supports 3.3V and 1.8V    |
-| VCC              | Supply 5V            | 5V            |
-| GND              | Gnd  
+| Vcc              | +5V             | Power Supply            |
+| GND              | GND                  | GND
 
 
-# Running the Arduino Sketch
+# Visualizing Output
 
-If you have correctly installed the libraries, the example sketeches should now be available from within Arduino.
+![openview output](./assets/max30001_doc.gif)
 
-Open up your Arduino IDE and run the Arudino sketch (.ino) file in the archive that you downloaded. Your Arduino should now be programmed to read the ecg data and sending over the USB-UART.  
 
-# Using the Protocentral OpenView GUI
+For further details of the board, refer the documentation
+<center>
 
-The GUI for visualizing the ECG and Respiration as well as parameters like Heart rate and Respiration rate is written in Processing, based on Java and is cross-compilable across platforms.
+[ MAX30001 breakout board Documentation](https://docs.protocentral.com/getting-started-with-MAX30001/)
 
-![Wearing the Electrode](assets/gif-max30001-openview.gif)
-
-Java 8 is required on all platforms for running the processing-based GUI application. You can download Java for your platform from the [Official Java website](https://www.java.com/en/download/).
-
-You can download and install [Protocentral OpenView from here](https://github.com/Protocentral/protocentral_openview).
-
-Once you have opened OpenView, make sure to select "MAX30001 breakout" under the "Select Board" dropdown. 
-
-# Connecting the ECG Electrodes
-
-A 2-electrode cable along with a standard stereo jack is provided along with the shield to connect the electrodes to the board. The electrode input connector is highlighted in the below picture.
-
-The other side of the electrode connector would connect to snap-on electrodes attached to the body. For testing purposes, you can use an ECG simulator to provide inputs to the board.
-
-*Warning:
-When connecting the electodes to the body, it is safer to disconnect the mains power source to the Arduino. For example, if  you are using the Arduino along with a laptop, disconnecting the battery charger from the laptop would be a safe option.*
-
-# Placing the Electrodes on the body
-
-![Wearing the Electrode](assets/body.png)
+</center>
 
 
 License Information
