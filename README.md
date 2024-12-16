@@ -1,6 +1,3 @@
-[![Compile Examples](https://github.com/Protocentral/protocentral_max30001_arduino_library/workflows/Compile%20Examples/badge.svg)](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions?workflow=Compile+Examples)
-
-
 # Protocentral MAX30001 ECG and Bio-Impedance Breakout Board
 [![Compile Examples](https://github.com/Protocentral/protocentral_max30001_arduino_library/workflows/Compile%20Examples/badge.svg)](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions?workflow=Compile+Examples)
 
