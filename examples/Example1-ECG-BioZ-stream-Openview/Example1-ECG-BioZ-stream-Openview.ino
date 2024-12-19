@@ -103,8 +103,9 @@ bool BioZSkipSample = false;
 
 void setup()
 {
-  Serial.begin(57600); // Serial begin
-
+  Serial.begin(57600);
+   // Serial begin
+  SPI.begin();
   SPI.beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
 
   bool ret = max30001.max30001ReadInfo();
