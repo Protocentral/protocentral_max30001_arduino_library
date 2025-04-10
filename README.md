@@ -33,13 +33,8 @@ Connection with the Arduino board is as follows:
 
 ![openview output](./assets/max30001_doc.gif)
 
+## For further details, refer [the documentation on FDC1004 breakout board](https://docs.protocentral.com/getting-started-with-MAX30001/)
 
-For further details of the board, refer the documentation
-<center>
-
-[ MAX30001 breakout board Documentation](https://docs.protocentral.com/getting-started-with-MAX30001/)
-
-</center>
 
 
 License Information

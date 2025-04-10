@@ -12,11 +12,6 @@ on:
       - ".github/workflows/compile-examples.yml"
       - "examples/**"
       - "src/**"
-  schedule:
-    # Run every Tuesday at 8 AM UTC to catch breakage caused by changes to external resources (libraries, platforms).
-    - cron: "0 8 * * TUE"
-  workflow_dispatch:
-  repository_dispatch:
 
 jobs:
   build:
@@ -160,7 +155,7 @@ jobs:
           
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@master
 
       - name: Install ESP32 platform dependencies
         if: startsWith(matrix.board.fqbn, 'esp32:esp32')
@@ -183,8 +178,8 @@ jobs:
           sketches-report-path: ${{ env.SKETCHES_REPORTS_PATH }}
 
       - name: Save sketches report as workflow artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           path: ${{ env.SKETCHES_REPORTS_PATH }}
-          name: ${{ env.SKETCHES_REPORTS_PATH }}
+          name: artifacts-${{ env.SKETCHES_REPORTS_PATH }}-${{ strategy.job-index }}
