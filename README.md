@@ -5,42 +5,217 @@
 
 ![Protocentral MAX30001 Single-channel ECG breakout](assets/max30001_brk.jpg)
 
+## Overview
 
-MAX30001 is a single-lead ECG monitoring IC which has built-in R-R detection and several other features that make it perfect for a wearable single-lead ECG application.  
+MAX30001 is a single-lead ECG monitoring IC with built-in R-R interval detection, designed for wearable biomedical applications. This Arduino library provides a modern, easy-to-use interface for accessing all chip features.
 
-Several new features on this chip make it ideal for wearable applications. First is the low power consumption - just 85 uW of power and can work from 1.1 V onwards ! Also of interest is the fact that it can work with only two chest electrodes without the need for a third right-leg drive (DRL) electrode.
+**Key Capabilities:**
+- Single-lead ECG acquisition at 128/256/512 SPS
+- Bio-impedance (BioZ) measurement for respiration monitoring
+- Hardware R-R interval (heartbeat) detection
+- Lead-off detection for electrode connectivity monitoring
+- Programmable gain (80 V/V or 160 V/V)
+- Adjustable digital filters
+- Ultra-low power consumption (85 µW)
+- Works with just 2 electrodes (no DRL electrode needed)
+- SPI communication interface
 
-The best feature of this chip though is the built-in R-R detection algorithm which can measure the time between successive peaks of the QRS complex of the ECG. This means that heart-computation comes right out of the box without any microcontroller-side code requirement. Heart-rate computation just got a lot easier !!
+---
+
+## Quick Start
+
+### Installation
+1. Download this library as a ZIP file
+2. In Arduino IDE: **Sketch → Include Library → Add .ZIP Library**
+3. Select the downloaded ZIP file
+
+### Basic Example (5 lines to get started)
+
+```cpp
+#include <SPI.h>
+#include <protocentral_max30001.h>
+
+MAX30001 sensor(7);  // CS pin = 7
+
+void setup() {
+    Serial.begin(115200);
+    sensor.begin();
+    sensor.startECGBioZ(MAX30001_RATE_128);  // 128 SPS
+}
+
+void loop() {
+    max30001_ecg_sample_t ecg;
+    if (sensor.getECGSample(&ecg) == MAX30001_SUCCESS) {
+        float ecg_mv = sensor.convertECGToMicrovolts(ecg.ecg_sample, MAX30001_ECG_GAIN_80);
+        Serial.println(ecg_mv);
+    }
+    delay(8);  // ~128 SPS spacing
+}
+```
+
+---
+
+## Features
+
+### High-Level API (Recommended for most users)
+- **Simple initialization**: `begin()`, `isConnected()`, `getDeviceInfo()`
+- **Measurement modes**: `startECG()`, `startBioZ()`, `startECGBioZ()`, `startRtoR()`
+- **Easy data access**: `getECGSample()`, `getBioZSample()`, `getRtoRData()`
+- **Automatic configuration**: Sensible defaults, no register manipulation needed
+
+### Advanced Configuration (For customization)
+- **Runtime gain adjustment**: `setECGGain()`
+- **Channel control**: `enableECG()`, `disableECG()`, `enableBioZ()`, `disableBioZ()`
+- **Filter tuning**: `setECGHighPassFilter()`, `setECGLowPassFilter()`
+- **Electrode monitoring**: `getLeadOffStatus()`, `getFIFOCount()`, `clearFIFO()`
+- **Error handling**: Comprehensive error codes and status checking
+
+### Measurement Structures
+All samples return validated, timestamped data:
+
+```cpp
+// ECG Sample
+max30001_ecg_sample_t {
+    int32_t ecg_sample;         // Raw ADC value
+    uint32_t timestamp_ms;      // Timestamp
+    bool lead_off_detected;     // Electrode contact status
+    bool sample_valid;          // Validity flag
+};
+
+// R-R Data
+max30001_rtor_data_t {
+    uint16_t heart_rate_bpm;    // Calculated heart rate
+    uint16_t rr_interval_ms;    // Time between heartbeats
+    bool rr_detected;           // Detection flag
+};
+```
+
+---
+
+## Examples
+
+The library includes **5 complete working examples**:
+
+| Example | Purpose |
+|---------|---------|
+| **Example01_BasicECGBioZ** | Real-time ECG + BioZ streaming in ProtoCentral OpenView format |
+| **Example02_RtoRDetection** | Heart rate detection and R-R interval measurement |
+| **Example03_LeadOff** | Electrode connectivity monitoring |
+| **Example04_InterruptDriven** | ISR-based data acquisition (INT1 pin) |
+| **Example05_AdvancedConfig** | Runtime configuration changes (gain, filters, channels) |
+
+Load any example: **File → Examples → Protocentral MAX30001 → Example0X_...**
+
+---
 
 ## Hardware Setup
 
-Connection with the Arduino board is as follows:
+### Standard Arduino Wiring
 
-|MAX30001 pin label| Arduino Connection   |Pin Function      |
-|----------------- |:--------------------:|-----------------:|
-| MISO             | D12                  |  Slave out|             
-| MOSI             | D11                  |  Slave in           |
-| SCK              | D13                  |  Serial clock     |
-| CS0              | D7                   |  Slave select|
-| FCLK             | NC                   |  External clock(32KHz)     |
-| INT1             | D2                   |  Interrupt        |
-| INT2             | NC                   |  Interrupt       |
-| Vcc              | +5V             | Power Supply            |
-| GND              | GND                  | GND
+| MAX30001 Pin | Arduino Pin | Function |
+|--------------|-------------|----------|
+| MISO | D12 | SPI Slave Out |
+| MOSI | D11 | SPI Slave In |
+| SCK | D13 | SPI Clock |
+| CS | D7 | Chip Select |
+| INT1 | D2 | Interrupt (optional) |
+| VCC | +5V | Power Supply |
+| GND | GND | Ground |
 
+### ESP32 Alternative Wiring
 
-# Visualizing Output
+| MAX30001 Pin | ESP32 Pin | Function |
+|--------------|-----------|----------|
+| MISO | GPIO 19 | SPI Slave Out |
+| MOSI | GPIO 23 | SPI Slave In |
+| SCK | GPIO 18 | SPI Clock |
+| CS | GPIO 5 | Chip Select |
+| INT1 | GPIO 2 | Interrupt (optional) |
+| VCC | +3.3V | Power Supply |
+| GND | GND | Ground |
 
-![openview output](./assets/max30001_doc.gif)
+### Electrode Connections
 
-## For further details, refer [the documentation on MAX30001 breakout board](https://docs.protocentral.com/getting-started-with-max30001/)
+**For ECG Measurement:**
+- Connect ECG+ electrode to **ECGP** pin
+- Connect ECG- electrode to **ECGN** pin
+- No DRL (right-leg drive) electrode required
 
+**For BioZ (Respiration):**
+- Connect BioZ+ electrode to **BIP** pin
+- Connect BioZ- electrode to **BIN** pin
 
+---
 
-License Information
-===================
+## API Reference
 
-![License](license_mark.svg)
+See **[API_REFERENCE.md](docs/API_REFERENCE.md)** for complete method documentation.
+
+### Common Operations
+
+```cpp
+// Check device connection
+if (!sensor.isConnected()) {
+    Serial.println("Device not found!");
+}
+
+// Get device information
+max30001_device_info_t info;
+sensor.getDeviceInfo(&info);
+Serial.println(info.part_id, HEX);
+
+// Adjust gain during operation
+sensor.setECGGain(MAX30001_ECG_GAIN_160);
+
+// Monitor electrode connectivity
+if (sensor.getLeadOffStatus()) {
+    Serial.println("Lead-off detected!");
+}
+
+// Change filters
+sensor.setECGHighPassFilter(0.5);   // 0.5 Hz high-pass
+sensor.setECGLowPassFilter(40);     // 40 Hz low-pass
+
+// Check for errors
+max30001_error_t last_error = sensor.getLastError();
+```
+
+---
+
+## Documentation
+
+- **[API_REFERENCE.md](docs/API_REFERENCE.md)** - Complete method reference
+- **[HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md)** - Detailed wiring and electrode placement
+- **[MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md)** - For users upgrading from old API
+- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+
+---
+
+## ProtoCentral OpenView Visualization
+
+Stream real-time ECG and BioZ data to **[ProtoCentral OpenView](https://github.com/Protocentral/protocentral_openview)**:
+
+1. Run **Example01_BasicECGBioZ** on your Arduino
+2. Open ProtoCentral OpenView
+3. Select the serial port and baud rate **57600**
+4. Click **Connect** to visualize waveforms in real-time
+
+---
+
+## Performance Specifications
+
+| Parameter | Value |
+|-----------|-------|
+| ECG Sample Rates | 128, 256, 512 SPS |
+| ECG Gain | 80 V/V or 160 V/V |
+| BioZ Sample Rate | Half of ECG rate (64/128/256 SPS) |
+| Power Consumption | 85 µW (typical) |
+| SPI Speed | 1 MHz |
+| Memory Usage (Example) | ~47 KB program, ~5.5 KB RAM |
+
+---
+
+## License Information
 
 This product is open source! Both, our hardware and software are open source and licensed under the following licenses:
 
