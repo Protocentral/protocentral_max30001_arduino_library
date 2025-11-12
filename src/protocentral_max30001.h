@@ -1,29 +1,36 @@
-// ______          _        _____            _             _
-// | ___ \        | |      /  __ \          | |           | |
-// | |_/ / __ ___ | |_ ___ | /  \/ ___ _ __ | |_ _ __ __ _| |
-// |  __/ '__/ _ \| __/ _ \| |    / _ \ '_ \| __| '__/ _` | |
-// | |  | | | (_) | || (_) | \__/\  __/ | | | |_| | | (_| | |
-// \_|  |_|  \___/ \__\___/ \____/\___|_| |_|\__|_|  \__,_|_|
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+// SPDX-FileCopyrightText: Copyright (c) 2016 Maxim Integrated Products, Inc. (register definitions)
 
-//////////////////////////////////////////////////////////////////////////////////////////
-//
-//  Demo code for the MAX30001 breakout board
-//
-//  Copyright (c) 2020 ProtoCentral
-//
-//  This software is licensed under the MIT License(http://opensource.org/licenses/MIT).
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-//  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-//  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-//  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-//  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-//
-//  For information on how to use, visit https://github.com/Protocentral/protocentral-max30001-arduino
-//
-//  SOME PARTS OF THIS CODE ARE COPYRIGHT MAXIM INTEFGRATED PRODUCTS, INC. and are used with permission according to the following license:
-//
-/////////////////////////////////////////////////////////////////////////////////////////
+/*
+ * MAX30001 Single-Lead ECG Breakout Board - Arduino Library
+ *
+ * Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+ * Email: info@protocentral.com
+ *
+ * This software is licensed under the MIT License.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * This library incorporates register definitions and design patterns from
+ * Maxim Integrated Products, Inc., used with permission.
+ */
 
 /*******************************************************************************
  * Copyright (C) 2016 Maxim Integrated Products, Inc., All Rights Reserved.
@@ -61,9 +68,16 @@
 #define protocentral_max30001_h
 
 #include <Arduino.h>
+#include <SPI.h>
 
+// =============================================================================
+// SPI Configuration
+// =============================================================================
 #define MAX30001_SPI_SPEED 1000000
 
+// =============================================================================
+// Register Addresses
+// =============================================================================
 #define WREG 0x00
 #define RREG 0x01
 
@@ -97,6 +111,97 @@
 
 #define RTOR 0x25
 #define NO_OP 0x7F
+
+// =============================================================================
+// New API: Error Codes and Type Definitions
+// =============================================================================
+
+/**
+ * @brief Error codes returned by MAX30001 functions
+ */
+typedef enum {
+    MAX30001_SUCCESS = 0,                    ///< Operation completed successfully
+    MAX30001_ERROR_INVALID_PARAMETER,        ///< Invalid parameter provided
+    MAX30001_ERROR_NOT_INITIALIZED,          ///< Device not initialized
+    MAX30001_ERROR_SPI_COMMUNICATION,        ///< SPI communication error
+    MAX30001_ERROR_DEVICE_NOT_FOUND,         ///< Device not responding
+    MAX30001_ERROR_FIFO_OVERFLOW,            ///< FIFO overflow occurred
+    MAX30001_ERROR_NOT_READY                 ///< Data not ready
+} max30001_error_t;
+
+/**
+ * @brief Channel identifiers
+ */
+typedef enum {
+    MAX30001_CHANNEL_ECG = 0,
+    MAX30001_CHANNEL_BIOZ = 1
+} max30001_channel_t;
+
+/**
+ * @brief Sample rate options
+ */
+typedef enum {
+    MAX30001_RATE_128 = 128,   ///< 128 samples per second
+    MAX30001_RATE_256 = 256,   ///< 256 samples per second
+    MAX30001_RATE_512 = 512    ///< 512 samples per second
+} max30001_sample_rate_t;
+
+/**
+ * @brief ECG gain options
+ */
+typedef enum {
+    MAX30001_ECG_GAIN_20 = 0b00,   ///< 20 V/V
+    MAX30001_ECG_GAIN_40 = 0b01,   ///< 40 V/V
+    MAX30001_ECG_GAIN_80 = 0b10,   ///< 80 V/V
+    MAX30001_ECG_GAIN_160 = 0b11   ///< 160 V/V
+} max30001_ecg_gain_t;
+
+/**
+ * @brief BioZ gain options
+ */
+typedef enum {
+    MAX30001_BIOZ_GAIN_10 = 0b00,  ///< 10 V/V
+    MAX30001_BIOZ_GAIN_20 = 0b01,  ///< 20 V/V
+    MAX30001_BIOZ_GAIN_40 = 0b10,  ///< 40 V/V
+    MAX30001_BIOZ_GAIN_80 = 0b11   ///< 80 V/V
+} max30001_bioz_gain_t;
+
+/**
+ * @brief ECG sample data structure
+ */
+typedef struct {
+    int32_t ecg_sample;           ///< Raw ECG sample value
+    uint32_t timestamp_ms;        ///< Sample timestamp in milliseconds
+    bool lead_off_detected;       ///< Lead-off detection flag
+    bool sample_valid;            ///< Sample validity flag
+} max30001_ecg_sample_t;
+
+/**
+ * @brief BioZ sample data structure
+ */
+typedef struct {
+    int32_t bioz_sample;          ///< Raw BioZ sample value
+    uint32_t timestamp_ms;        ///< Sample timestamp in milliseconds
+    bool sample_valid;            ///< Sample validity flag
+} max30001_bioz_sample_t;
+
+/**
+ * @brief R-R detection data structure
+ */
+typedef struct {
+    uint16_t heart_rate_bpm;      ///< Heart rate in BPM
+    uint16_t rr_interval_ms;      ///< R-R interval in milliseconds
+    bool rr_detected;             ///< R-R detection flag
+} max30001_rtor_data_t;
+
+/**
+ * @brief Device information structure
+ */
+typedef struct {
+    uint8_t part_id;              ///< Part ID
+    uint8_t revision;             ///< Chip revision
+    bool device_found;            ///< Device detection flag
+} max30001_device_info_t;
 
 #define CLK_PIN 6
 #define RTOR_INTR_MASK 0x04
@@ -354,6 +459,7 @@ typedef union max30001_cnfg_rtor2_reg
 
 } max30001_cnfg_rtor2_t;
 
+// Legacy typedef for backward compatibility
 typedef enum
 {
   SAMPLINGRATE_128 = 128,
@@ -361,52 +467,306 @@ typedef enum
   SAMPLINGRATE_512 = 512
 } sampRate;
 
+// =============================================================================
+// MAX30001 Class Declaration
+// =============================================================================
+
+/**
+ * @brief Main class for interfacing with the MAX30001 ECG/BioZ sensor
+ * 
+ * This class provides both a modern high-level API and maintains backward
+ * compatibility with the legacy interface.
+ */
 class MAX30001
 {
 public:
+  // =========================================================================
+  // Constructors and Initialization
+  // =========================================================================
+  
+  /**
+   * @brief Constructor with chip select pin
+   * @param cs_pin SPI chip select pin number
+   * @param spi_interface SPI interface to use (default: SPI)
+   */
+  MAX30001(uint8_t cs_pin, SPIClass* spi_interface = &SPI);
+  
+  /**
+   * @brief Legacy constructor (for backward compatibility)
+   * @param cs_pin SPI chip select pin number
+   */
   MAX30001(int cs_pin);
+  
+  /**
+   * @brief Initialize the MAX30001 sensor
+   * @return Error code indicating success or failure
+   */
+  max30001_error_t begin();
+  
+  /**
+   * @brief Check if device is connected and responding
+   * @return true if device responding, false otherwise
+   */
+  bool isConnected();
+  
+  /**
+   * @brief Get chip information
+   * @param info Pointer to store device info
+   * @return Error code
+   */
+  max30001_error_t getDeviceInfo(max30001_device_info_t* info);
+  
+  // =========================================================================
+  // High-Level Measurement API (New Interface)
+  // =========================================================================
+  
+  /**
+   * @brief Start ECG monitoring with specified settings
+   * @param sample_rate Desired sample rate (default: 128 SPS)
+   * @param gain ECG gain setting (default: 80 V/V)
+   * @return Error code
+   */
+  max30001_error_t startECG(max30001_sample_rate_t sample_rate = MAX30001_RATE_128,
+                            max30001_ecg_gain_t gain = MAX30001_ECG_GAIN_80);
+  
+  /**
+   * @brief Start BioZ monitoring with specified settings
+   * @param sample_rate Desired sample rate (default: 128 SPS)
+   * @return Error code
+   */
+  max30001_error_t startBioZ(max30001_sample_rate_t sample_rate = MAX30001_RATE_128);
+  
+  /**
+   * @brief Start combined ECG + BioZ monitoring
+   * @param sample_rate ECG sample rate (BioZ will be half)
+   * @return Error code
+   */
+  max30001_error_t startECGBioZ(max30001_sample_rate_t sample_rate = MAX30001_RATE_128);
+  
+  /**
+   * @brief Start ECG with R-R interval detection
+   * @param sample_rate Desired sample rate (default: 128 SPS)
+   * @param gain ECG gain setting (default: 80 V/V)
+   * @return Error code (convenience wrapper for startECG with R-R enabled internally)
+   */
+  max30001_error_t startRtoR(max30001_sample_rate_t sample_rate = MAX30001_RATE_128,
+                             max30001_ecg_gain_t gain = MAX30001_ECG_GAIN_80);
+  
+  /**
+   * @brief Get single ECG sample
+   * @param sample Pointer to store ECG sample data
+   * @return Error code
+   */
+  max30001_error_t getECGSample(max30001_ecg_sample_t* sample);
+  
+  /**
+   * @brief Get single BioZ sample
+   * @param sample Pointer to store BioZ sample data
+   * @return Error code
+   */
+  max30001_error_t getBioZSample(max30001_bioz_sample_t* sample);
+  
+  /**
+   * @brief Get R-R detection data
+   * @param rtor_data Pointer to store R-R data
+   * @return Error code
+   */
+  max30001_error_t getRtoRData(max30001_rtor_data_t* rtor_data);
+  
+  /**
+   * @brief Stop all monitoring
+   */
+  void stop();
+  
+  /**
+   * @brief Convert raw ECG value to microvolts
+   * @param raw_value Raw ADC value
+   * @param gain Current gain setting
+   * @return Value in microvolts
+   */
+  float convertECGToMicrovolts(int32_t raw_value, max30001_ecg_gain_t gain);
+  
+  /**
+   * @brief Get last error code
+   * @return Last error that occurred
+   */
+  max30001_error_t getLastError() const;
+  
+  // =========================================================================
+  // Advanced Configuration API (Phase 3)
+  // =========================================================================
+  
+  /**
+   * @brief Set ECG gain during runtime
+   * @param gain New gain setting (80, 160 V/V options)
+   * @return Error code
+   */
+  max30001_error_t setECGGain(max30001_ecg_gain_t gain);
+  
+  /**
+   * @brief Get current ECG gain setting
+   * @return Current ECG gain
+   */
+  max30001_ecg_gain_t getECGGain() const { return _ecg_gain; }
+  
+  /**
+   * @brief Enable ECG channel (resume acquisition)
+   * @return Error code
+   */
+  max30001_error_t enableECG();
+  
+  /**
+   * @brief Disable ECG channel (pause acquisition)
+   * @return Error code
+   */
+  max30001_error_t disableECG();
+  
+  /**
+   * @brief Check if ECG channel is enabled
+   * @return true if ECG is acquiring, false otherwise
+   */
+  bool isECGEnabled() const { return _ecg_enabled; }
+  
+  /**
+   * @brief Enable BioZ channel (resume acquisition)
+   * @return Error code
+   */
+  max30001_error_t enableBioZ();
+  
+  /**
+   * @brief Disable BioZ channel (pause acquisition)
+   * @return Error code
+   */
+  max30001_error_t disableBioZ();
+  
+  /**
+   * @brief Check if BioZ channel is enabled
+   * @return true if BioZ is acquiring, false otherwise
+   */
+  bool isBioZEnabled() const { return _bioz_enabled; }
+  
+  /**
+   * @brief Set ECG high-pass filter cutoff frequency
+   * @param cutoff_hz Cutoff frequency in Hz (typically 0.4, 0.8, 1.2 Hz)
+   * @return Error code
+   */
+  max30001_error_t setECGHighPassFilter(float cutoff_hz);
+  
+  /**
+   * @brief Set ECG low-pass filter cutoff frequency
+   * @param cutoff_hz Cutoff frequency in Hz (typically 40, 100 Hz)
+   * @return Error code
+   */
+  max30001_error_t setECGLowPassFilter(float cutoff_hz);
+  
+  /**
+   * @brief Get lead-off detection status for both electrodes
+   * @return true if lead-off detected on either electrode, false if both connected
+   */
+  bool getLeadOffStatus();
+  
+  /**
+   * @brief Get FIFO sample count for ECG channel
+   * @return Number of samples available in FIFO
+   */
+  uint8_t getFIFOCount();
+  
+  /**
+   * @brief Clear/flush ECG FIFO buffer
+   * @return Error code
+   */
+  max30001_error_t clearFIFO();
+  
+  /**
+   * @brief Enable INT1 interrupt output
+   * @return Error code
+   */
+  max30001_error_t enableInterrupt();
+  
+  /**
+   * @brief Disable INT1 interrupt output
+   * @return Error code
+   */
+  max30001_error_t disableInterrupt();
+  
+  /**
+   * @brief Get current sample rate
+   * @return Current sample rate setting
+   */
+  max30001_sample_rate_t getSampleRate() const { return _sample_rate; }
+  
+  /**
+   * @brief Get expected sample delay in milliseconds
+   * @return Delay between samples (e.g., 8ms for 128 SPS)
+   */
+  uint16_t getSampleDelayMs() const;
+  
+  // =========================================================================
+  // Legacy Interface (Backward Compatibility)
+  // =========================================================================
+  
+  // Legacy public data members (deprecated - use new API methods instead)
   unsigned int heartRate;
   unsigned int RRinterval;
   signed long ecg_data;
   signed long bioz_data;
-
   volatile int ecgSamplesAvailable;
   volatile int biozSamplesAvailable;
   signed long s32ECGData[128];
   signed long s32BIOZData[128];
-
+  
+  // Legacy initialization methods
   void BeginECGOnly();
   void BeginECGBioZ();
   void BeginRtoRMode();
-
+  
+  // Legacy data acquisition methods
   signed long getECGSamples(void);
   signed long getBioZSamples(void);
   void getHRandRR(void);
-
+  
+  // Legacy utility methods
   bool max30001ReadInfo(void);
   void max30001SetsamplingRate(uint16_t samplingRate);
-
   void max30001SetInterrupts(uint32_t interrupts);
   void max30001ServiceAllInterrupts();
-
   void readStatus(void);
 
 private:
+  // =========================================================================
+  // Private Members
+  // =========================================================================
+  
+  SPIClass* _spi;
+  uint8_t _cs_pin;
+  max30001_error_t _last_error;
+  bool _initialized;
+  max30001_ecg_gain_t _ecg_gain;
+  max30001_sample_rate_t _sample_rate;
+  bool _ecg_enabled;
+  bool _bioz_enabled;
+  
+  max30001_status_t global_status;
+  volatile unsigned char _readBufferECG[128];
+  volatile unsigned char _readBufferBIOZ[128];
+  
+  // =========================================================================
+  // Private Methods - Low-Level Hardware Interface
+  // =========================================================================
+  
   void _max30001ReadECGFIFO(int num_bytes);
   void _max30001ReadBIOZFIFO(int num_bytes);
-
   void _max30001Synch(void);
   void _max30001RegWrite(unsigned char WRITE_ADDRESS, unsigned long data);
   void _max30001RegRead(uint8_t Reg_address, uint8_t *buff);
   void _max30001RegRead24(uint8_t Reg_address, uint32_t *read_data);
-
   void _max30001SwReset(void);
   void _max30001FIFOReset(void);
-
-  max30001_status_t global_status;
-  int _cs_pin;
-  volatile unsigned char _readBufferECG[128];  // 4*32 samples
-  volatile unsigned char _readBufferBIOZ[128]; // 4*32 samples
+  
+  // Helper methods
+  max30001_error_t _validateSampleRate(max30001_sample_rate_t rate);
+  uint8_t _rateToRegValue(max30001_sample_rate_t rate);
+  uint8_t _getSampleDelayMs(max30001_sample_rate_t rate) const;
 };
 
 #endif
