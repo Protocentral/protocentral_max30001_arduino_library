@@ -1,43 +1,34 @@
-// ______          _        _____            _             _
-// | ___ \        | |      /  __ \          | |           | |
-// | |_/ / __ ___ | |_ ___ | /  \/ ___ _ __ | |_ _ __ __ _| |
-// |  __/ '__/ _ \| __/ _ \| |    / _ \ '_ \| __| '__/ _` | |
-// | |  | | | (_) | || (_) | \__/\  __/ | | | |_| | | (_| | |
-// \_|  |_|  \___/ \__\___/ \____/\___|_| |_|\__|_|  \__,_|_|
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
 
 /*
-
-*** Example code for MAX30001 ECG breakout board ***
-
-This example assumes that the MAX30001 is used for monitoring ECG and Respiation signals. The BioZ channel
-is used for respiration measurement and connected accordingly on the breakout board.
-
-*/
-//
-//  Arduino connections:
-//
-//  |MAX30001 pin label| Pin Function         |Arduino Connection|
-//  |----------------- |:--------------------:|-----------------:|
-//  | MISO             | Slave Out            |  D12             |
-//  | MOSI             | Slave In             |  D11             |
-//  | SCLK             | Serial Clock         |  D13             |
-//  | CS               | Chip Select          |  D7              |
-//  | VCC              | Digital VDD          |  +5V             |
-//  | GND              | Digital Gnd          |  Gnd             |
-//  | FCLK             | 32K CLOCK            |  -               |
-//  | INT1             | Interrupt1           |  02              |
-//  | INT2             | Interrupt2           |  -               |
-//
-//  This software is licensed under the MIT License(http://opensource.org/licenses/MIT).
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-//  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-//  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-//  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-//  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-//
-//  For information on how to use, visit https://github.com/Protocentral/protocentral-max30001-arduino
-//
+ * MAX30001 Single-Lead ECG Breakout Board - Arduino Library (Implementation)
+ *
+ * Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+ * Email: info@protocentral.com
+ *
+ * This software is licensed under the MIT License.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * For information on how to use, visit https://github.com/Protocentral/protocentral-max30001-arduino
+ */
 /////////////////////////////////////////////////////////////////////////////////////////
 
 #include <SPI.h>

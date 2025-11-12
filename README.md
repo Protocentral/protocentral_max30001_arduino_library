@@ -1,5 +1,8 @@
 # Protocentral MAX30001 ECG and Bio-Impedance Breakout Board
+
 [![Compile Examples](https://github.com/Protocentral/protocentral_max30001_arduino_library/workflows/Compile%20Examples/badge.svg)](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions?workflow=Compile+Examples)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Arduino Library](https://img.shields.io/badge/Arduino-Library-00979D?logo=arduino)](https://www.arduino.cc)
 
 ## Don't have one? [Buy it here](https://protocentral.com/product/protocentral-max30001/)
 

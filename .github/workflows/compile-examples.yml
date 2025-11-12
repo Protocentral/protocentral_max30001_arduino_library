@@ -155,7 +155,7 @@ jobs:
           
     steps:
       - name: Checkout repository
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
 
       - name: Install ESP32 platform dependencies
         if: startsWith(matrix.board.fqbn, 'esp32:esp32')

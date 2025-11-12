@@ -1,12 +1,23 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+
+/*
+ * R-R Interval Detection Demo for MAX30001 (New API)
+ *
+ * Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+ * Email: info@protocentral.com
+ *
+ * This example demonstrates R-R interval (heartbeat timing) detection using the
+ * hardware R-R detection feature built into the MAX30001.
+ * 
+ * The MAX30001 has a dedicated R-wave detector that identifies peaks in the ECG
+ * signal and calculates the R-R interval (time between consecutive heartbeats).
+ *
+ * This software is licensed under the MIT License.
+ */
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //
-//    R-R Interval Detection Demo for MAX30001 (New API)
-//
-//    This example demonstrates R-R interval (heartbeat timing) detection using the
-//    hardware R-R detection feature built into the MAX30001.
-//    
-//    The MAX30001 has a dedicated R-wave detector that identifies peaks in the ECG
-//    signal and calculates the R-R interval (time between consecutive heartbeats).
 //    
 //    Output includes:
 //      - R-R interval in milliseconds

@@ -1,11 +1,21 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+
+/*
+ * Basic ECG + BioZ Demo for MAX30001 (New API)
+ *
+ * Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+ * Email: info@protocentral.com
+ *
+ * This example demonstrates the new simplified API for acquiring ECG and BioZ data.
+ * It uses high-level methods with automatic configuration and error handling.
+ * 
+ * Data is streamed in ProtoCentral OpenView format for real-time waveform visualization.
+ *
+ * This software is licensed under the MIT License.
+ */
+
 //////////////////////////////////////////////////////////////////////////////////////////
-//
-//    Basic ECG + BioZ Demo for MAX30001 (New API)
-//
-//    This example demonstrates the new simplified API for acquiring ECG and BioZ data.
-//    It uses high-level methods with automatic configuration and error handling.
-//    
-//    Data is streamed in ProtoCentral OpenView format for real-time waveform visualization.
 //
 //    Software:
 //      - Download ProtoCentral OpenView: https://github.com/Protocentral/protocentral_openview

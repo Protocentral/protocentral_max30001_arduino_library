@@ -1,13 +1,24 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+
+/*
+ * Lead-Off Detection Demo for MAX30001 (New API)
+ *
+ * Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+ * Email: info@protocentral.com
+ *
+ * This example demonstrates electrode lead-off detection (electrode contact monitoring).
+ * The MAX30001 can detect when electrodes are disconnected or have poor contact.
+ * 
+ * Lead-off detection is important for:
+ *   - Alerting the user to check electrode placement
+ *   - Ensuring signal quality in clinical or wearable applications
+ *
+ * This software is licensed under the MIT License.
+ */
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //
-//    Lead-Off Detection Demo for MAX30001 (New API)
-//
-//    This example demonstrates electrode lead-off detection (electrode contact monitoring).
-//    The MAX30001 can detect when electrodes are disconnected or have poor contact.
-//    
-//    Lead-off detection is important for:
-//      - Alerting the user to check electrode placement
-//      - Ensuring signal quality in clinical or wearable applications
 //      - Preventing erroneous heart rate calculations from noise
 //
 //    Output includes:

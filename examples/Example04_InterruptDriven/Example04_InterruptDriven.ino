@@ -1,13 +1,24 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+
+/*
+ * Interrupt-Driven ECG Acquisition Demo for MAX30001 (New API)
+ *
+ * Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+ * Email: info@protocentral.com
+ *
+ * This example demonstrates interrupt-driven ECG data acquisition using the MAX30001's
+ * INT1 output. Instead of polling the device in the main loop, the MAX30001 generates
+ * an interrupt whenever new data is available.
+ *
+ * Benefits of interrupt-driven mode:
+ *   - Lower CPU usage (no continuous polling)
+ *
+ * This software is licensed under the MIT License.
+ */
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //
-//    Interrupt-Driven ECG Acquisition Demo for MAX30001 (New API)
-//
-//    This example demonstrates interrupt-driven ECG data acquisition using the MAX30001's
-//    INT1 output. Instead of polling the device in the main loop, the MAX30001 generates
-//    an interrupt whenever new data is available.
-//
-//    Benefits of interrupt-driven mode:
-//      - Lower CPU usage (no continuous polling)
 //      - More precise timing for real-time applications
 //      - Better performance in resource-constrained systems
 //      - Enables other tasks while waiting for data

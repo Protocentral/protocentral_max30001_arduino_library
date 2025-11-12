@@ -1,13 +1,24 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+
+/*
+ * Advanced Configuration Demo for MAX30001
+ *
+ * Copyright (c) 2025 Ashwin Whitchurch, Protocentral Electronics
+ * Email: info@protocentral.com
+ *
+ * This example demonstrates advanced configuration features including:
+ * - Runtime gain adjustment
+ * - Channel enable/disable control
+ * - Filter configuration (high-pass, low-pass)
+ * - Lead-off detection
+ * - FIFO management
+ *
+ * This software is licensed under the MIT License.
+ */
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //
-//    Advanced Configuration Demo for MAX30001
-//
-//    This example demonstrates advanced configuration features including:
-//    - Runtime gain adjustment
-//    - Channel enable/disable control
-//    - Filter configuration (high-pass, low-pass)
-//    - Lead-off detection
-//    - FIFO management
 //    - Interrupt control
 //
 //    Hardware Setup:
