@@ -111,6 +111,24 @@ Load any example: **File → Examples → Protocentral MAX30001 → Example0X_..
 
 ---
 
+## Platform Requirements
+
+This library requires at least **8 KB of SRAM** and **16 KB of Flash memory**. It is **NOT compatible with low-memory boards** like Arduino Uno, Nano, or Leonardo (only 2 KB SRAM).
+
+### Recommended Platforms:
+- ✅ **Arduino Mega** (8 KB SRAM, 256 KB Flash) - Minimum supported
+- ✅ **Arduino Uno R4 Minima** (32 KB SRAM, 262 KB Flash) - **Recommended for best performance**
+- ✅ **Arduino Uno R4 WiFi** (32 KB SRAM, 262 KB Flash)
+- ✅ **ESP32 / ESP32-S2 / ESP32-C3** (320+ KB SRAM)
+- ✅ **Arduino SAMD21 / SAMD51** (32+ KB SRAM)
+- ✅ **Arduino MKR boards** (32 KB SRAM)
+- ✅ **Arduino Nano 33 BLE** (256 KB SRAM)
+- ✅ **Arduino Portenta** (2+ MB SRAM)
+- ✅ **Raspberry Pi Pico / RP2040** (264 KB SRAM)
+- ✅ **STM32 boards** (varies, most modern boards supported)
+
+---
+
 ## Hardware Setup
 
 ### Standard Arduino Wiring
