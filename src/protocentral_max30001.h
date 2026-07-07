@@ -567,6 +567,13 @@ public:
   max30001_error_t getBioZSample(max30001_bioz_sample_t* sample);
   
   /**
+   * @brief Enable R-to-R / heart-rate extraction while keeping the ECG/BioZ
+   *        stream active.
+   * @return Error code
+   */
+  max30001_error_t enableRtoR();
+  
+  /**
    * @brief Get R-R detection data
    * @param rtor_data Pointer to store R-R data
    * @return Error code
