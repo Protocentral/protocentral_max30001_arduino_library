@@ -348,7 +348,8 @@ max30001_error_t MAX30001::startECGBioZ(max30001_sample_rate_t sample_rate)
     
     // Use the existing legacy method which is well-tested
     BeginECGBioZ();
-    
+    enableRtoR();
+
     _ecg_enabled = true;
     _bioz_enabled = true;
     _last_error = MAX30001_SUCCESS;
@@ -357,8 +358,32 @@ max30001_error_t MAX30001::startECGBioZ(max30001_sample_rate_t sample_rate)
 
 max30001_error_t MAX30001::startRtoR(max30001_sample_rate_t sample_rate, max30001_ecg_gain_t gain)
 {
-    // Convenience method for R-R detection: just start ECG (R-R is built-in)
-    return startECG(sample_rate, gain);
+    // // Convenience method for R-R detection: just start ECG (R-R is built-in)
+    // return startECG(sample_rate, gain);
+    max30001_error_t rc = startECG(sample_rate, gain);
+    if (rc != MAX30001_SUCCESS) {
+        return rc;
+    }
+    return enableRtoR();
+}
+
+max30001_error_t MAX30001::enableRtoR()
+{
+    if (!_initialized) {
+        _last_error = MAX30001_ERROR_NOT_INITIALIZED;
+        return _last_error;
+    }
+
+    _max30001RegWrite(CNFG_RTOR1, 0x3fc600);
+    delay(100);
+    _max30001RegWrite(EN_INT, 0x000401);
+    delay(100);
+    _max30001Synch();
+    delay(100);
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+    
 }
 
 max30001_error_t MAX30001::getECGSample(max30001_ecg_sample_t* sample)
