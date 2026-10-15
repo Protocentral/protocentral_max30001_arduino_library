@@ -1,0 +1,84 @@
+#######################################
+# Syntax Coloring Map for ProtoCentral MAX30001
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+MAX30001	KEYWORD1
+max30001_error_t	KEYWORD1
+max30001_sample_rate_t	KEYWORD1
+max30001_ecg_gain_t	KEYWORD1
+max30001_bioz_gain_t	KEYWORD1
+max30001_ecg_sample_t	KEYWORD1
+max30001_bioz_sample_t	KEYWORD1
+max30001_rtor_data_t	KEYWORD1
+max30001_leadoff_t	KEYWORD1
+max30001_device_info_t	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+# Initialization
+begin	KEYWORD2
+isConnected	KEYWORD2
+getDeviceInfo	KEYWORD2
+getLastError	KEYWORD2
+getLibraryVersion	KEYWORD2
+
+# Measurement
+startECG	KEYWORD2
+startBioZ	KEYWORD2
+startECGBioZ	KEYWORD2
+startRtoR	KEYWORD2
+stop	KEYWORD2
+getECGSample	KEYWORD2
+getBioZSample	KEYWORD2
+getRtoRData	KEYWORD2
+convertECGToMicrovolts	KEYWORD2
+
+# Configuration
+setECGGain	KEYWORD2
+getECGGain	KEYWORD2
+enableECG	KEYWORD2
+disableECG	KEYWORD2
+isECGEnabled	KEYWORD2
+enableBioZ	KEYWORD2
+disableBioZ	KEYWORD2
+isBioZEnabled	KEYWORD2
+setECGHighPassFilter	KEYWORD2
+setECGLowPassFilter	KEYWORD2
+getSampleRate	KEYWORD2
+getSampleDelayMs	KEYWORD2
+
+# Lead-off, FIFO and interrupts
+getLeadOffStatus	KEYWORD2
+getLeadOffDetail	KEYWORD2
+getFIFOCount	KEYWORD2
+clearFIFO	KEYWORD2
+enableInterrupt	KEYWORD2
+disableInterrupt	KEYWORD2
+max30001ServiceAllInterrupts	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+MAX30001_LIBRARY_VERSION	LITERAL1
+MAX30001_SUCCESS	LITERAL1
+MAX30001_ERROR_INVALID_PARAMETER	LITERAL1
+MAX30001_ERROR_NOT_INITIALIZED	LITERAL1
+MAX30001_ERROR_SPI_COMMUNICATION	LITERAL1
+MAX30001_ERROR_DEVICE_NOT_FOUND	LITERAL1
+MAX30001_ERROR_FIFO_OVERFLOW	LITERAL1
+MAX30001_ERROR_NOT_READY	LITERAL1
+MAX30001_RATE_128	LITERAL1
+MAX30001_RATE_256	LITERAL1
+MAX30001_RATE_512	LITERAL1
+MAX30001_ECG_GAIN_20	LITERAL1
+MAX30001_ECG_GAIN_40	LITERAL1
+MAX30001_ECG_GAIN_80	LITERAL1
+MAX30001_ECG_GAIN_160	LITERAL1
+MAX30001_NO_LEGACY_NAMES	LITERAL1

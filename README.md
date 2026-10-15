@@ -1,282 +1,288 @@
-# Protocentral MAX30001 ECG and Bio-Impedance Breakout Board
+# ProtoCentral MAX30001 ECG and Bio-Impedance Arduino Library
 
-[![Compile Examples](https://github.com/Protocentral/protocentral_max30001_arduino_library/workflows/Compile%20Examples/badge.svg)](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions?workflow=Compile+Examples)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Arduino Library](https://img.shields.io/badge/Arduino-Library-00979D?logo=arduino)](https://www.arduino.cc)
+[![Arduino Lint](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions/workflows/arduino-lint.yml/badge.svg)](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions/workflows/arduino-lint.yml)
+[![Compile Examples](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions/workflows/compile-examples.yml/badge.svg)](https://github.com/Protocentral/protocentral_max30001_arduino_library/actions/workflows/compile-examples.yml)
+
+Arduino library for the **ProtoCentral MAX30001 ECG and Bio-Impedance Breakout**: single-lead ECG, bio-impedance (BioZ) respiration and hardware heart-rate detection from the Analog Devices MAX30001 analog front end. Every example runs on an Arduino Uno.
 
 ## Don't have one? [Buy it here](https://protocentral.com/product/protocentral-max30001/)
 
-![Protocentral MAX30001 Single-channel ECG breakout](assets/max30001_brk.jpg)
+![ProtoCentral MAX30001 ECG and bio-impedance breakout](assets/max30001_brk.jpg)
 
-## Overview
+## Links
 
-MAX30001 is a single-lead ECG monitoring IC with built-in R-R interval detection, designed for wearable biomedical applications. This Arduino library provides a modern, easy-to-use interface for accessing all chip features.
+| | |
+|---|---|
+| 🛒 Product page | https://protocentral.com/product/protocentral-max30001/ |
+| 🔧 Hardware design files | https://github.com/Protocentral/protocentral_max30001 |
+| 📈 OpenView companion app | https://github.com/Protocentral/protocentral_openview |
+| 📄 MAX30001 datasheet (Analog Devices) | https://www.analog.com/media/en/technical-documentation/data-sheets/max30001.pdf |
 
-**Key Capabilities:**
-- Single-lead ECG acquisition at 128/256/512 SPS
-- Bio-impedance (BioZ) measurement for respiration monitoring
-- Hardware R-R interval (heartbeat) detection
-- Lead-off detection for electrode connectivity monitoring
-- Programmable gain (20, 40, 80 or 160 V/V)
-- Adjustable digital filters
-- Ultra-low power consumption (85 µW)
-- Works with just 2 electrodes (no DRL electrode needed)
-- SPI communication interface
+## How it works
 
----
+The MAX30001 has two measurement channels and an on-chip heart-rate detector. Both channels share the RA and LA electrodes; RL holds the body at the chip's common-mode voltage.
+
+| Block | Signal | How |
+|---|---|---|
+| **ECG** | Single-lead ECG | 18-bit, 128/256/512 SPS, gain 20–160 V/V. Default 80 V/V, 0.5 Hz high-pass, 40 Hz low-pass (28 Hz at 128 SPS). |
+| **BioZ** | Respiration | The chip drives a 16 µA, ~8 kHz current through RA/LA and demodulates the voltage. As the chest expands, its impedance changes by a fraction of an ohm. 20-bit, 64 SPS, gain 10 V/V, 0.05 Hz high-pass, 4 Hz low-pass. |
+| **R-to-R** | Heart rate | Hardware R-wave detector on the ECG channel. The library reads the R-R interval each time the chip flags a beat. |
+| **Lead-off** | Electrode contact | 10 nA DC current on each ECG input; a comparator flags an input that drifts past VMID ± 300 mV. |
+
+Samples queue in on-chip FIFOs (32 ECG, 8 BioZ). The library reads them one at a time, or in bursts when the FIFO interrupt fires.
+
+## Features
+
+- **Measurement:** ECG only, BioZ only, or both; one call to start each mode
+- **Data path:** FIFO-tag checking (empty, overflow, BioZ out of range), ECG conversion to µV
+- **Heart rate:** on-chip R-to-R detection, reported once per beat
+- **Lead-off:** DC lead-off on both electrodes, with per-electrode high/low flags
+- **Interrupts:** FIFO-threshold interrupt on the INTB pin, plus burst FIFO reads
+- **Configuration:** ECG gain, high-pass and low-pass filters, channel enable/disable at runtime
+- **Standalone:** `depends=` is empty, so there is nothing else to install
+- **Host boards:** Uno, Nano, Mega, Leonardo, Uno R4, Nano 33 BLE, ESP32, ESP32-C3 and RP2040
+
+## Safety
+
+> **Not a medical device. For research and education only.**
+>
+> This board has **no patient isolation**. When electrodes are on a person, power the host from a **battery**. Never connect electrodes while the host is plugged into mains-powered USB or test equipment.
+
+## Installation
+
+### Arduino Library Manager (Recommended)
+
+1. Open **Sketch → Include Library → Manage Libraries…**
+2. Search for **ProtoCentral MAX30001**.
+3. Install **ProtoCentral MAX30001**.
+
+### Manual Installation
+
+Download this repository as a ZIP, then use **Sketch → Include Library → Add .ZIP Library…**
+
+## Hardware Setup
+
+| Board pin | Function | Arduino Uno / Uno R4 | ESP32 DevKit |
+|---|---|---|---|
+| CSB  | SPI chip select | D7 | GPIO5 |
+| MOSI | SPI data in | D11 | GPIO23 |
+| SCLK | SPI clock | D13 | GPIO18 |
+| MISO | SPI data out | D12 | GPIO19 |
+| INTB | FIFO interrupt, active low (example 04) | D2 | any GPIO |
+| INT2B | Second interrupt output (not used) | - | - |
+| FCLK | 32.768 kHz clock (leave open) | - | - |
+| VDD  | 3.3 V to 5 V | 5V | 3V3 |
+| GND  | Ground | GND | GND |
+
+**Pin notes**
+- **Logic level:** the board's level translator runs its host side at VDD, so power the board from the host's logic supply: 5 V on an Uno, 3.3 V on an ESP32.
+- **Other CS pins:** pass the pin to the constructor, `MAX30001 sensor(5);`. A different SPI bus can be passed as the second argument.
+
+### Electrodes
+
+Connect the 3-electrode cable to the 3.5 mm jack:
+
+| Electrode | Placement | Used by |
+|---|---|---|
+| RA | Right side of the chest, below the collarbone | ECGN and BioZ |
+| LA | Left side of the chest, below the collarbone | ECGP and BioZ |
+| RL | Lower left abdomen | Body bias |
+
+ECG and respiration share RA and LA (2-electrode BioZ). For the strongest respiration signal, keep RA and LA on the chest rather than the wrists.
 
 ## Quick Start
-
-### Installation
-1. Download this library as a ZIP file
-2. In Arduino IDE: **Sketch → Include Library → Add .ZIP Library**
-3. Select the downloaded ZIP file
-
-### Basic Example (5 lines to get started)
 
 ```cpp
 #include <SPI.h>
 #include <protocentral_max30001.h>
 
-MAX30001 sensor(7);  // CS pin = 7
+MAX30001 sensor(7);  // CS pin
 
 void setup() {
     Serial.begin(115200);
-    sensor.begin();
-    sensor.startECGBioZ(MAX30001_RATE_128);  // 128 SPS
+    if (sensor.begin() != MAX30001_SUCCESS) {
+        Serial.println("MAX30001 not found");
+        while (1) {}
+    }
+    sensor.startECGBioZ(MAX30001_RATE_128, MAX30001_ECG_GAIN_80);
 }
 
 void loop() {
     max30001_ecg_sample_t ecg;
-    if (sensor.getECGSample(&ecg) == MAX30001_SUCCESS) {
-        float ecg_uv = sensor.convertECGToMicrovolts(ecg.ecg_sample, MAX30001_ECG_GAIN_80);
-        Serial.println(ecg_uv);
+    max30001_bioz_sample_t bioz;
+
+    // Each call returns MAX30001_ERROR_NOT_READY once the FIFO is empty
+    while (sensor.getECGSample(&ecg) == MAX30001_SUCCESS) {
+        Serial.println(sensor.convertECGToMicrovolts(ecg.ecg_sample, MAX30001_ECG_GAIN_80));
     }
-    // getECGSample() returns MAX30001_ERROR_NOT_READY until the next sample is in the FIFO
+    while (sensor.getBioZSample(&bioz) == MAX30001_SUCCESS) {
+        // bioz.bioz_sample: respiration (raw counts, 64 SPS)
+    }
 }
 ```
 
----
-
-## Features
-
-### High-Level API (Recommended for most users)
-- **Simple initialization**: `begin()`, `isConnected()`, `getDeviceInfo()`
-- **Measurement modes**: `startECG()`, `startBioZ()`, `startECGBioZ()`, `startRtoR()`
-- **Easy data access**: `getECGSample()`, `getBioZSample()`, `getRtoRData()`
-- **Automatic configuration**: Sensible defaults, no register manipulation needed
-
-### Advanced Configuration (For customization)
-- **Runtime gain adjustment**: `setECGGain()`
-- **Channel control**: `enableECG()`, `disableECG()`, `enableBioZ()`, `disableBioZ()`
-- **Filter tuning**: `setECGHighPassFilter()`, `setECGLowPassFilter()`
-- **Electrode monitoring**: `getLeadOffStatus()`, `getLeadOffDetail()`, `clearFIFO()`
-- **Error handling**: Comprehensive error codes and status checking
-
-### Measurement Structures
-All samples return validated, timestamped data:
+### Heart rate
 
 ```cpp
-// ECG Sample
-max30001_ecg_sample_t {
-    int32_t ecg_sample;         // Raw ADC value
-    uint32_t timestamp_ms;      // Timestamp
-    bool lead_off_detected;     // Electrode contact status
-    bool sample_valid;          // Validity flag
-};
-
-// R-R Data
-max30001_rtor_data_t {
-    uint16_t heart_rate_bpm;    // Calculated heart rate
-    uint16_t rr_interval_ms;    // Time between heartbeats
-    bool rr_detected;           // Detection flag
-};
+max30001_rtor_data_t rr;
+if (sensor.getRtoRData(&rr) == MAX30001_SUCCESS && rr.rr_detected) {
+    Serial.print(rr.heart_rate_bpm);
+    Serial.print(" BPM, RR ");
+    Serial.println(rr.rr_interval_ms);
+}
 ```
-
----
-
-## Examples
-
-The library includes **5 complete working examples**:
-
-| Example | Purpose |
-|---------|---------|
-| **Example01_BasicECGBioZ** | Real-time ECG + BioZ streaming in ProtoCentral OpenView format |
-| **Example02_RtoRDetection** | Heart rate detection and R-R interval measurement |
-| **Example03_LeadOff** | Electrode connectivity monitoring |
-| **Example04_InterruptDriven** | ISR-based batch acquisition (INTB pin) |
-| **Example05_AdvancedConfig** | Runtime configuration changes (gain, filters, channels) |
-
-Load any example: **File → Examples → Protocentral MAX30001 → Example0X_...**
-
----
-
-## Platform Requirements
-
-This library requires at least **8 KB of SRAM** and **16 KB of Flash memory**. It is **NOT compatible with low-memory boards** like Arduino Uno, Nano, or Leonardo (only 2 KB SRAM).
-
-### Recommended Platforms:
-- ✅ **Arduino Mega** (8 KB SRAM, 256 KB Flash) - Minimum supported
-- ✅ **Arduino Uno R4 Minima** (32 KB SRAM, 262 KB Flash) - **Recommended for best performance**
-- ✅ **Arduino Uno R4 WiFi** (32 KB SRAM, 262 KB Flash)
-- ✅ **ESP32 / ESP32-S2 / ESP32-C3** (320+ KB SRAM)
-- ✅ **Arduino SAMD21 / SAMD51** (32+ KB SRAM)
-- ✅ **Arduino MKR boards** (32 KB SRAM)
-- ✅ **Arduino Nano 33 BLE** (256 KB SRAM)
-- ✅ **Arduino Portenta** (2+ MB SRAM)
-- ✅ **Raspberry Pi Pico / RP2040** (264 KB SRAM)
-- ✅ **STM32 boards** (varies, most modern boards supported)
-
----
-
-## Hardware Setup
-
-### Standard Arduino Wiring
-
-| MAX30001 Pin | Arduino Pin | Function |
-|--------------|-------------|----------|
-| MISO | D12 | SPI Slave Out |
-| MOSI | D11 | SPI Slave In |
-| SCK | D13 | SPI Clock |
-| CS | D7 | Chip Select |
-| INT1 | D2 | Interrupt (optional) |
-| VCC | +5V | Power Supply |
-| GND | GND | Ground |
-
-### ESP32 Alternative Wiring
-
-| MAX30001 Pin | ESP32 Pin | Function |
-|--------------|-----------|----------|
-| MISO | GPIO 19 | SPI Slave Out |
-| MOSI | GPIO 23 | SPI Slave In |
-| SCK | GPIO 18 | SPI Clock |
-| CS | GPIO 5 | Chip Select |
-| INT1 | GPIO 2 | Interrupt (optional) |
-| VCC | +3.3V | Power Supply |
-| GND | GND | Ground |
-
-### Electrode Connections
-
-**For ECG Measurement:**
-- Connect ECG+ electrode to **ECGP** pin
-- Connect ECG- electrode to **ECGN** pin
-- No DRL (right-leg drive) electrode required
-
-**For BioZ (Respiration):**
-- Connect BioZ+ electrode to **BIP** pin
-- Connect BioZ- electrode to **BIN** pin
-
----
 
 ## API Reference
 
-See **[API_REFERENCE.md](docs/API_REFERENCE.md)** for complete method documentation.
+### Constructor and lifecycle
 
-### Common Operations
+| Method | Description |
+|---|---|
+| `MAX30001(uint8_t cs, SPIClass* spi = &SPI)` | CS pin and SPI bus |
+| `max30001_error_t begin()` | Start SPI, reset the chip and check its part ID |
+| `bool isConnected()` | Part ID check |
+| `getDeviceInfo(max30001_device_info_t*)` | Part ID and revision |
+| `getLastError()` | Last `max30001_error_t` |
+| `getLibraryVersion()` | Library version string |
 
-```cpp
-// Check device connection
-if (!sensor.isConnected()) {
-    Serial.println("Device not found!");
-}
+### Measurement
 
-// Get device information
-max30001_device_info_t info;
-sensor.getDeviceInfo(&info);
-Serial.println(info.part_id, HEX);
+| Method | Description |
+|---|---|
+| `startECG(rate = MAX30001_RATE_128, gain = MAX30001_ECG_GAIN_80)` | ECG with R-to-R and lead-off |
+| `startBioZ(rate)` | BioZ only (64 SPS) |
+| `startECGBioZ(rate, gain)` | ECG and BioZ together |
+| `startRtoR(rate, gain)` | Same as `startECG()` |
+| `stop()` | Stop both channels |
+| `getECGSample(max30001_ecg_sample_t*)` | Next ECG sample: `ecg_sample`, `timestamp_ms`, `lead_off_detected` |
+| `getBioZSample(max30001_bioz_sample_t*)` | Next BioZ sample: `bioz_sample`, `timestamp_ms`, `out_of_range` |
+| `getRtoRData(max30001_rtor_data_t*)` | `rr_detected` is true once per beat; `heart_rate_bpm`, `rr_interval_ms` |
+| `convertECGToMicrovolts(raw, gain)` | ECG counts to µV |
 
-// Adjust gain during operation
-sensor.setECGGain(MAX30001_ECG_GAIN_160);
+`getECGSample()` and `getBioZSample()` return `MAX30001_SUCCESS`, `MAX30001_ERROR_NOT_READY` when the FIFO is empty, or `MAX30001_ERROR_FIFO_OVERFLOW` (the FIFO is reset). Read until `NOT_READY` instead of timing reads with `delay()`.
 
-// Monitor electrode connectivity
-if (sensor.getLeadOffStatus()) {
-    Serial.println("Lead-off detected!");
-}
+### Configuration
 
-// Change filters
-sensor.setECGHighPassFilter(0.5);   // 0.5 Hz high-pass
-sensor.setECGLowPassFilter(40);     // 40 Hz low-pass
+| Method | Description |
+|---|---|
+| `setECGGain(gain)` / `getECGGain()` | `MAX30001_ECG_GAIN_20`, `_40`, `_80`, `_160` |
+| `setECGHighPassFilter(hz)` | `0` = bypass (DC); any value > 0 = 0.5 Hz |
+| `setECGLowPassFilter(hz)` | `0` = bypass, else the nearest of 40/100/150 Hz. 100 Hz needs ≥ 256 SPS, 150 Hz needs 512 SPS; at 128 SPS any value > 0 gives 28.35 Hz |
+| `enableECG()` / `disableECG()` / `isECGEnabled()` | Pause or resume the ECG channel |
+| `enableBioZ()` / `disableBioZ()` / `isBioZEnabled()` | Pause or resume the BioZ channel |
+| `getSampleRate()` | Current ECG sample rate |
 
-// Check for errors
-max30001_error_t last_error = sensor.getLastError();
-```
+### Lead-off, FIFO and interrupts
 
----
+| Method | Description |
+|---|---|
+| `getLeadOffStatus()` | `true` if either electrode is off |
+| `getLeadOffDetail(max30001_leadoff_t*)` | `any`, `p_high`, `p_low`, `n_high`, `n_low` |
+| `enableInterrupt()` / `disableInterrupt()` | INTB goes low at 16 ECG or 4 BioZ samples; drain both FIFOs to release it |
+| `clearFIFO()` | Reset both FIFOs |
+| `max30001ServiceAllInterrupts()` | Burst-read the FIFOs into `s32ECGData[]` / `s32BIOZData[]` |
+| `getFIFOCount()` | Samples from the last burst read (the chip has no FIFO count register) |
 
-## Documentation
+### Constants
 
-- **[API_REFERENCE.md](docs/API_REFERENCE.md)** - Complete method reference
-- **[HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md)** - Detailed wiring and electrode placement
-- **[MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md)** - For users upgrading from old API
-- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+| Name | Description |
+|---|---|
+| `MAX30001_LIBRARY_VERSION` | Library version string |
+| `MAX30001_REG_*` | Register addresses |
+| `MAX30001_NO_LEGACY_NAMES` | Define before the include to drop the unprefixed register names (`STATUS`, `INFO`, …) |
 
----
+## Examples
 
-## ProtoCentral OpenView Visualization
+| # | Sketch | Description |
+|---|---|---|
+| 01 | `01.OpenView` | Stream ECG, respiration, heart rate and R-R interval to OpenView |
+| 02 | `02.HeartRateRtoR` | Heart rate and R-R interval from the on-chip detector, one line per beat |
+| 03 | `03.LeadOffDetection` | Report which electrode is off |
+| 04 | `04.InterruptDriven` | Read the FIFOs in batches on the INTB interrupt |
+| 05 | `05.AdvancedConfig` | Change gain, filters and channels at runtime (512 SPS) |
 
-Stream real-time ECG and BioZ data to **[ProtoCentral OpenView](https://github.com/Protocentral/protocentral_openview)**:
+Examples 02–05 print at **115200 baud**. Example 01 streams binary packets at **115200 baud**.
 
-1. Run **Example01_BasicECGBioZ** on your Arduino
-2. Open ProtoCentral OpenView
-3. Select the **MAX30001 ECG & BioZ Breakout** board, the serial port and baud rate **115200**
-4. Click **Connect** to visualize waveforms in real-time
+`scripts/upload_uno_r4.sh [example] [port]` builds and uploads an example to an Uno R4 Minima. `scripts/build.sh [fqbn…]` compiles every example for the CI board list.
 
----
+## Streaming to OpenView
 
-## Performance Specifications
+1. Upload `01.OpenView`.
+2. Open [ProtoCentral OpenView](https://github.com/Protocentral/protocentral_openview).
+3. Select the **MAX30001 ECG & BioZ Breakout** board, then pick the serial port.
 
-| Parameter | Value |
-|-----------|-------|
-| ECG Sample Rates | 128, 256, 512 SPS |
-| ECG Gain | 20, 40, 80 or 160 V/V |
-| BioZ Sample Rate | Half of ECG rate (64/128/256 SPS) |
-| Power Consumption | 85 µW (typical) |
-| SPI Speed | 1 MHz |
-| Memory Usage (Example) | ~47 KB program, ~5.5 KB RAM |
+The sketch sends one packet per ECG sample (128 per second) at 115200 baud. Each packet is `0x0A 0xFA 0x0C 0x00 0x02`, then a 12-byte payload (ECG `int32`, BioZ `int32`, heart rate `int16`, R-R interval `int16`, all little-endian), then `0x00 0x0B`.
 
----
+This layout is shared with OpenView's `max30001` board descriptor. The sketch prints nothing else, because any text would corrupt the stream.
 
-## License Information
+## Troubleshooting
 
-This product is open source! Both, our hardware and software are open source and licensed under the following licenses:
+**`begin()` returns `MAX30001_ERROR_DEVICE_NOT_FOUND`**
+- Check the CSB/SCLK/MOSI/MISO wiring and VDD/GND.
+- Check that the CS pin in the sketch matches the wiring.
 
-Hardware
----------
+**No samples (`getECGSample()` always returns `NOT_READY`)**
+- A start method must be called after `begin()`.
 
-**All hardware is released under the [CERN-OHL-P v2](https://ohwr.org/cern_ohl_p_v2.txt)** license.
+**Flat or noisy respiration**
+- Check `out_of_range` on the BioZ samples, or raw values pinned near ±524287: the electrode-plus-body impedance is above the BioZ input range. Use fresh gel electrodes with good skin contact.
+- Keep RA and LA on the chest, and stay still. Small ripples on the breathing wave at heart rate are the cardiac impedance signal, not noise.
 
-Copyright CERN 2020.
+**Flat or noisy ECG**
+- Use fresh electrodes, keep cables still, and run on battery power.
+- `getLeadOffDetail()` shows which electrode has lost contact.
 
-This source describes Open Hardware and is licensed under the CERN-OHL-P v2.
+**Mains hum (50/60 Hz)**
+- Move away from mains cables and chargers, and power from a battery.
+- The RL electrode must be attached.
 
-You may redistribute and modify this documentation and make products
-using it under the terms of the CERN-OHL-P v2 (https:/cern.ch/cern-ohl).
-This documentation is distributed WITHOUT ANY EXPRESS OR IMPLIED
-WARRANTY, INCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY
-AND FITNESS FOR A PARTICULAR PURPOSE. Please see the CERN-OHL-P v2
-for applicable conditions
+**Heart rate stays 0**
+- The detector needs a few seconds of clean, still ECG before the first beat.
+- Check lead-off first.
 
-Software
---------
+**Example 04 prints nothing**
+- Connect INTB to the pin in `MAX30001_INT_PIN` (D2 on an Uno).
 
-**All software is released under the MIT License(http://opensource.org/licenses/MIT).**
+## Migrating from 2.0
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+Version 2.1 keeps the 2.0 API. The 1.x-style functions still work but are deprecated and will be removed in 3.0; the compiler warns where they are used.
 
-Documentation
--------------
-**All documentation is released under [Creative Commons Share-alike 4.0 International](http://creativecommons.org/licenses/by-sa/4.0/).**
-![CC-BY-SA-4.0](https://i.creativecommons.org/l/by-sa/4.0/88x31.png)
+| Deprecated | Use instead |
+|---|---|
+| `BeginECGOnly()` / `BeginECGBioZ()` / `BeginRtoRMode()` | `begin()` + `startECG()` / `startECGBioZ()` / `startRtoR()` |
+| `getECGSamples()` / `getBioZSamples()` | `getECGSample()` / `getBioZSample()` |
+| `getHRandRR()` + `heartRate` / `RRinterval` | `getRtoRData()` |
+| `max30001ReadInfo()` | `isConnected()` / `getDeviceInfo()` |
+| `max30001SetsamplingRate()` | Pass the rate to a start method |
+| `max30001SetInterrupts()` | `enableInterrupt()` |
+| `readStatus()` | `getLeadOffDetail()` / `getRtoRData()` |
+| `STATUS`, `CNFG_GEN`, … | `MAX30001_REG_STATUS`, `MAX30001_REG_CNFG_GEN`, … |
 
-You are free to:
+Outputs that change in 2.1:
+- **`convertECGToMicrovolts()`** returns values 1.64× smaller; 2.0 overstated them.
+- **BioZ** raw values are about half the 2.0 size for the same impedance (gain 10 V/V instead of 20 V/V).
+- **`01.OpenView`** streams at 115200 baud instead of 57600.
 
-* Share — copy and redistribute the material in any medium or format
-* Adapt — remix, transform, and build upon the material for any purpose, even commercially.
-The licensor cannot revoke these freedoms as long as you follow the license terms.
+See [CHANGELOG.md](CHANGELOG.md) for details.
 
-Under the following terms:
+## Related
 
-* Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.
-* ShareAlike — If you remix, transform, or build upon the material, you must distribute your contributions under the same license as the original.
+| | |
+|---|---|
+| Hardware design files | https://github.com/Protocentral/protocentral_max30001 |
+| OpenView companion app | https://github.com/Protocentral/protocentral_openview |
+| Analog Devices MAX30001 datasheet | https://www.analog.com/media/en/technical-documentation/data-sheets/max30001.pdf |
 
-Please check [*LICENSE.md*](LICENSE.md) for detailed license descriptions.
+## License
+
+- **Software:** MIT
+- **Hardware:** CERN-OHL-P v2
+- **Documentation:** CC BY-SA 4.0
+
+See [LICENSE.md](LICENSE.md).
+
+Copyright (c) 2016-2026 ProtoCentral Electronics.
+
+## Support
+
+Open an issue on [GitHub](https://github.com/Protocentral/protocentral_max30001_arduino_library/issues) or email support@protocentral.com.

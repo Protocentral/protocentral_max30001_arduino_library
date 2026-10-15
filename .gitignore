@@ -1,35 +1,13 @@
-# Prerequisites
-*.d
+# Editor / OS
+.vscode/
+.DS_Store
+*.swp
+*~
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+# Build artifacts
+build/
+.pio/
 
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-.vscode
-/docs
+# Local bring-up sketches and vendor datasheets
+dev/
+docs/*.pdf

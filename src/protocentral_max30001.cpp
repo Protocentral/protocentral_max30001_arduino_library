@@ -76,9 +76,6 @@ MAX30001::MAX30001(uint8_t cs_pin, SPIClass* spi_interface)
       _initialized(false), _ecg_gain(MAX30001_ECG_GAIN_80),
       _sample_rate(MAX30001_RATE_128), _ecg_enabled(false), _bioz_enabled(false)
 {
-    pinMode(_cs_pin, OUTPUT);
-    digitalWrite(_cs_pin, HIGH);
-
     // Initialize legacy members
     heartRate = 0;
     RRinterval = 0;
@@ -98,18 +95,16 @@ MAX30001::MAX30001(int cs_pin)
 void MAX30001::_max30001RegWrite(unsigned char WRITE_ADDRESS, unsigned long data)
 {
     // Combine the register address and the command into one byte:
-    byte dataToSend = (WRITE_ADDRESS << 1) | WREG;
+    byte dataToSend = (WRITE_ADDRESS << 1) | MAX30001_SPI_WRITE;
 
     _spi->beginTransaction(SPISettings(MAX30001_SPI_SPEED, MSBFIRST, SPI_MODE0));
 
     digitalWrite(_cs_pin, LOW);
 
-    delay(2);
     _spi->transfer(dataToSend);
     _spi->transfer(data >> 16);
     _spi->transfer(data >> 8);
     _spi->transfer(data);
-    delay(2);
 
     digitalWrite(_cs_pin, HIGH);
 
@@ -133,7 +128,7 @@ void MAX30001::_max30001RegRead(uint8_t Reg_address, uint8_t *buff)
 
     digitalWrite(_cs_pin, LOW);
 
-    spiTxBuff = (Reg_address << 1) | RREG;
+    spiTxBuff = (Reg_address << 1) | MAX30001_SPI_READ;
     _spi->transfer(spiTxBuff); // Send register location
 
     for (int i = 0; i < 3; i++)
@@ -148,18 +143,18 @@ void MAX30001::_max30001RegRead(uint8_t Reg_address, uint8_t *buff)
 
 void MAX30001::_max30001SwReset(void)
 {
-    _max30001RegWrite(SW_RST, 0x000000);
+    _max30001RegWrite(MAX30001_REG_SW_RST, 0x000000);
     delay(100);
 }
 
 void MAX30001::_max30001Synch(void)
 {
-    _max30001RegWrite(SYNCH, 0x000000);
+    _max30001RegWrite(MAX30001_REG_SYNCH, 0x000000);
 }
 
 void MAX30001::_max30001FIFOReset(void)
 {
-    _max30001RegWrite(FIFO_RST, 0x000000);
+    _max30001RegWrite(MAX30001_REG_FIFO_RST, 0x000000);
 }
 
 // =============================================================================
@@ -168,6 +163,9 @@ void MAX30001::_max30001FIFOReset(void)
 
 max30001_error_t MAX30001::begin()
 {
+    pinMode(_cs_pin, OUTPUT);
+    digitalWrite(_cs_pin, HIGH);
+
     // Initialize SPI
     _spi->begin();
 
@@ -188,7 +186,7 @@ max30001_error_t MAX30001::begin()
 bool MAX30001::isConnected()
 {
     uint8_t readBuff[4];
-    _max30001RegRead(INFO, readBuff);
+    _max30001RegRead(MAX30001_REG_INFO, readBuff);
 
     // Check for valid part ID (0x5x for MAX30001)
     return ((readBuff[0] & 0xF0) == 0x50);
@@ -202,7 +200,7 @@ max30001_error_t MAX30001::getDeviceInfo(max30001_device_info_t* info)
     }
 
     uint8_t readBuff[4];
-    _max30001RegRead(INFO, readBuff);
+    _max30001RegRead(MAX30001_REG_INFO, readBuff);
 
     info->part_id = (readBuff[0] & 0xF0) >> 4;
     info->revision = readBuff[0] & 0x0F;
@@ -239,9 +237,9 @@ void MAX30001::_configure(bool ecg, bool bioz, max30001_sample_rate_t sample_rat
         cnfg_gen.bit.imag = 0b010;     // 10 nA
         cnfg_gen.bit.vth = 0b00;       // VMID +/- 300 mV
     }
-    _max30001RegWrite(CNFG_GEN, cnfg_gen.all);
+    _max30001RegWrite(MAX30001_REG_CNFG_GEN, cnfg_gen.all);
 
-    _max30001RegWrite(CNFG_CAL, 0x720000); // Calibration sources disabled
+    _max30001RegWrite(MAX30001_REG_CNFG_CAL, 0x720000); // Calibration sources disabled
 
     // RRINT is cleared by reading RTOR, so a STATUS read elsewhere cannot drop a beat
     mngr_int.all = 0;
@@ -249,7 +247,7 @@ void MAX30001::_configure(bool ecg, bool bioz, max30001_sample_rate_t sample_rat
     mngr_int.bit.b_fit = 0b011;     // BioZ FIFO interrupt at 4 samples
     mngr_int.bit.clr_rrint = 0b01;
     mngr_int.bit.clr_samp = 1;
-    _max30001RegWrite(MNGR_INT, mngr_int.all);
+    _max30001RegWrite(MAX30001_REG_MNGR_INT, mngr_int.all);
 
     if (ecg) {
         cnfg_ecg.all = 0;
@@ -257,10 +255,10 @@ void MAX30001::_configure(bool ecg, bool bioz, max30001_sample_rate_t sample_rat
         cnfg_ecg.bit.gain = gain;
         cnfg_ecg.bit.dhpf = 0b1;    // 0.5 Hz high-pass
         cnfg_ecg.bit.dlpf = 0b01;   // ~40 Hz low-pass (28 Hz at 128 sps)
-        _max30001RegWrite(CNFG_ECG, cnfg_ecg.all);
+        _max30001RegWrite(MAX30001_REG_CNFG_ECG, cnfg_ecg.all);
 
         cnfg_emux.all = 0;          // ECGP/ECGN connected, no calibration, normal polarity
-        _max30001RegWrite(CNFG_EMUX, cnfg_emux.all);
+        _max30001RegWrite(MAX30001_REG_CNFG_EMUX, cnfg_emux.all);
 
         // Datasheet defaults for the R-to-R detector, with EN_RTOR set
         cnfg_rtor1.all = 0;
@@ -269,7 +267,7 @@ void MAX30001::_configure(bool ecg, bool bioz, max30001_sample_rate_t sample_rat
         cnfg_rtor1.bit.en_rtor = 1;
         cnfg_rtor1.bit.pavg = 0b10;     // 8
         cnfg_rtor1.bit.ptsf = 0b0011;   // 4/16
-        _max30001RegWrite(CNFG_RTOR1, cnfg_rtor1.all);
+        _max30001RegWrite(MAX30001_REG_CNFG_RTOR1, cnfg_rtor1.all);
     }
 
     if (bioz) {
@@ -285,13 +283,13 @@ void MAX30001::_configure(bool ecg, bool bioz, max30001_sample_rate_t sample_rat
         cnfg_bioz.bit.cgmon = 0;
         cnfg_bioz.bit.cgmag = 0b010;    // 16 uA
         cnfg_bioz.bit.phoff = 0b0011;   // 33.75 deg
-        _max30001RegWrite(CNFG_BIOZ, cnfg_bioz.all);
+        _max30001RegWrite(MAX30001_REG_CNFG_BIOZ, cnfg_bioz.all);
 
-        _max30001RegWrite(CNFG_BIOZ_LC, 0x800000); // High current range (8-96 uA)
+        _max30001RegWrite(MAX30001_REG_CNFG_BIOZ_LC, 0x800000); // High current range (8-96 uA)
 
         cnfg_bmux.all = 0;              // BIP/BIN connected, no calibration
         cnfg_bmux.bit.rmod = 0b100;     // Built-in modulated resistor load off
-        _max30001RegWrite(CNFG_BMUX, cnfg_bmux.all);
+        _max30001RegWrite(MAX30001_REG_CNFG_BMUX, cnfg_bmux.all);
     }
 
     _max30001Synch();
@@ -380,7 +378,7 @@ max30001_error_t MAX30001::getECGSample(max30001_ecg_sample_t* sample)
     }
 
     uint32_t word;
-    _max30001RegRead24(ECG_FIFO, &word);
+    _max30001RegRead24(MAX30001_REG_ECG_FIFO, &word);
     uint8_t etag = (word >> 3) & 0x07;
 
     if (etag == MAX30001_TAG_EMPTY) {
@@ -421,7 +419,7 @@ max30001_error_t MAX30001::getBioZSample(max30001_bioz_sample_t* sample)
     }
 
     uint32_t word;
-    _max30001RegRead24(BIOZ_FIFO, &word);
+    _max30001RegRead24(MAX30001_REG_BIOZ_FIFO, &word);
     uint8_t btag = word & 0x07;
 
     if (btag == MAX30001_TAG_EMPTY) {
@@ -462,9 +460,9 @@ max30001_error_t MAX30001::getRtoRData(max30001_rtor_data_t* rtor_data)
         return _last_error;
     }
 
-    readStatus();
+    _readStatus();
     if (global_status.bit.rrint) {
-        getHRandRR();  // Reading RTOR clears RRINT
+        _readRtoR();  // Reading RTOR clears RRINT
         rtor_data->rr_detected = (RRinterval > 0);
     }
 
@@ -482,7 +480,7 @@ void MAX30001::stop()
     }
 
     // Disable all channels
-    _max30001RegWrite(CNFG_GEN, 0x000000);
+    _max30001RegWrite(MAX30001_REG_CNFG_GEN, 0x000000);
 
     _ecg_enabled = false;
     _bioz_enabled = false;
@@ -518,7 +516,7 @@ max30001_error_t MAX30001::getLastError() const
 }
 
 // =============================================================================
-// Advanced Configuration Methods (Phase 3)
+// Configuration
 // =============================================================================
 
 max30001_error_t MAX30001::setECGGain(max30001_ecg_gain_t gain)
@@ -535,9 +533,9 @@ max30001_error_t MAX30001::setECGGain(max30001_ecg_gain_t gain)
     }
 
     max30001_cnfg_ecg_t cnfg_ecg;
-    _max30001RegRead24(CNFG_ECG, &cnfg_ecg.all);
+    _max30001RegRead24(MAX30001_REG_CNFG_ECG, &cnfg_ecg.all);
     cnfg_ecg.bit.gain = gain;
-    _max30001RegWrite(CNFG_ECG, cnfg_ecg.all);
+    _max30001RegWrite(MAX30001_REG_CNFG_ECG, cnfg_ecg.all);
 
     _ecg_gain = gain;
     _last_error = MAX30001_SUCCESS;
@@ -557,9 +555,9 @@ max30001_error_t MAX30001::enableECG()
     }
 
     max30001_cnfg_gen_t cnfg_gen;
-    _max30001RegRead24(CNFG_GEN, &cnfg_gen.all);
+    _max30001RegRead24(MAX30001_REG_CNFG_GEN, &cnfg_gen.all);
     cnfg_gen.bit.en_ecg = 1;
-    _max30001RegWrite(CNFG_GEN, cnfg_gen.all);
+    _max30001RegWrite(MAX30001_REG_CNFG_GEN, cnfg_gen.all);
 
     _ecg_enabled = true;
     _last_error = MAX30001_SUCCESS;
@@ -579,9 +577,9 @@ max30001_error_t MAX30001::disableECG()
     }
 
     max30001_cnfg_gen_t cnfg_gen;
-    _max30001RegRead24(CNFG_GEN, &cnfg_gen.all);
+    _max30001RegRead24(MAX30001_REG_CNFG_GEN, &cnfg_gen.all);
     cnfg_gen.bit.en_ecg = 0;
-    _max30001RegWrite(CNFG_GEN, cnfg_gen.all);
+    _max30001RegWrite(MAX30001_REG_CNFG_GEN, cnfg_gen.all);
 
     _ecg_enabled = false;
     _last_error = MAX30001_SUCCESS;
@@ -601,9 +599,9 @@ max30001_error_t MAX30001::enableBioZ()
     }
 
     max30001_cnfg_gen_t cnfg_gen;
-    _max30001RegRead24(CNFG_GEN, &cnfg_gen.all);
+    _max30001RegRead24(MAX30001_REG_CNFG_GEN, &cnfg_gen.all);
     cnfg_gen.bit.en_bioz = 1;
-    _max30001RegWrite(CNFG_GEN, cnfg_gen.all);
+    _max30001RegWrite(MAX30001_REG_CNFG_GEN, cnfg_gen.all);
 
     _bioz_enabled = true;
     _last_error = MAX30001_SUCCESS;
@@ -623,9 +621,9 @@ max30001_error_t MAX30001::disableBioZ()
     }
 
     max30001_cnfg_gen_t cnfg_gen;
-    _max30001RegRead24(CNFG_GEN, &cnfg_gen.all);
+    _max30001RegRead24(MAX30001_REG_CNFG_GEN, &cnfg_gen.all);
     cnfg_gen.bit.en_bioz = 0;
-    _max30001RegWrite(CNFG_GEN, cnfg_gen.all);
+    _max30001RegWrite(MAX30001_REG_CNFG_GEN, cnfg_gen.all);
 
     _bioz_enabled = false;
     _last_error = MAX30001_SUCCESS;
@@ -641,9 +639,9 @@ max30001_error_t MAX30001::setECGHighPassFilter(float cutoff_hz)
 
     // The ECG channel has one high-pass option: bypass (DC) or 0.5 Hz
     max30001_cnfg_ecg_t cnfg_ecg;
-    _max30001RegRead24(CNFG_ECG, &cnfg_ecg.all);
+    _max30001RegRead24(MAX30001_REG_CNFG_ECG, &cnfg_ecg.all);
     cnfg_ecg.bit.dhpf = (cutoff_hz > 0.0f) ? 1 : 0;
-    _max30001RegWrite(CNFG_ECG, cnfg_ecg.all);
+    _max30001RegWrite(MAX30001_REG_CNFG_ECG, cnfg_ecg.all);
 
     _last_error = MAX30001_SUCCESS;
     return MAX30001_SUCCESS;
@@ -671,9 +669,9 @@ max30001_error_t MAX30001::setECGLowPassFilter(float cutoff_hz)
     }
 
     max30001_cnfg_ecg_t cnfg_ecg;
-    _max30001RegRead24(CNFG_ECG, &cnfg_ecg.all);
+    _max30001RegRead24(MAX30001_REG_CNFG_ECG, &cnfg_ecg.all);
     cnfg_ecg.bit.dlpf = dlpf_bits;
-    _max30001RegWrite(CNFG_ECG, cnfg_ecg.all);
+    _max30001RegWrite(MAX30001_REG_CNFG_ECG, cnfg_ecg.all);
 
     _last_error = MAX30001_SUCCESS;
     return MAX30001_SUCCESS;
@@ -703,7 +701,7 @@ max30001_error_t MAX30001::getLeadOffDetail(max30001_leadoff_t* leadoff)
         return _last_error;
     }
 
-    readStatus();
+    _readStatus();
     leadoff->any = global_status.bit.dcloffint;
     leadoff->p_high = global_status.bit.loff_ph;
     leadoff->p_low = global_status.bit.loff_pl;
@@ -749,11 +747,11 @@ max30001_error_t MAX30001::enableInterrupt()
 
     // INTB goes low while the ECG FIFO holds >= 16 samples (or the BioZ FIFO
     // >= 4). CMOS output, since the board's TXB0108 does not pass a weak pull-up well.
-    uint32_t en_int = EN_EINT | 0x01;
+    uint32_t en_int = MAX30001_EN_INT_EINT | MAX30001_INTB_TYPE_CMOS;
     if (_bioz_enabled) {
-        en_int |= EN_BIOZ_FIFO_INT;
+        en_int |= MAX30001_EN_INT_BINT;
     }
-    _max30001RegWrite(EN_INT, en_int);
+    _max30001RegWrite(MAX30001_REG_EN_INT, en_int);
 
     _last_error = MAX30001_SUCCESS;
     return MAX30001_SUCCESS;
@@ -767,7 +765,7 @@ max30001_error_t MAX30001::disableInterrupt()
     }
 
     // No interrupt sources; keep INTB driven high
-    _max30001RegWrite(EN_INT, 0x000001);
+    _max30001RegWrite(MAX30001_REG_EN_INT, MAX30001_INTB_TYPE_CMOS);
 
     _last_error = MAX30001_SUCCESS;
     return MAX30001_SUCCESS;
@@ -825,41 +823,23 @@ uint8_t MAX30001::_getSampleDelayMs(max30001_sample_rate_t rate) const
 
 bool MAX30001::max30001ReadInfo(void)
 {
-    uint8_t readBuff[4];
-
-    _max30001RegRead(INFO, readBuff);
-
-    if ((readBuff[0] & 0xf0) == 0x50)
-    {
-        Serial.print("MAX30001 Detected. Rev ID:  ");
-        Serial.println((readBuff[0] & 0x0f));
-
-        return true;
-    }
-    else
-    {
-
-        Serial.println("MAX30001 read info error\n");
-        return false;
-    }
-
-    return false;
+    return isConnected();
 }
 
 void MAX30001::BeginECGOnly()
 {
     _max30001SwReset();
     delay(100);
-    _max30001RegWrite(CNFG_GEN, 0x081007);
+    _max30001RegWrite(MAX30001_REG_CNFG_GEN, 0x081007);
     delay(100);
-    _max30001RegWrite(CNFG_CAL, 0x720000); // 0x700000
+    _max30001RegWrite(MAX30001_REG_CNFG_CAL, 0x720000); // 0x700000
     delay(100);
-    _max30001RegWrite(CNFG_EMUX, 0x0B0000);
+    _max30001RegWrite(MAX30001_REG_CNFG_EMUX, 0x0B0000);
     delay(100);
-    _max30001RegWrite(CNFG_ECG, 0x825000); // d23 - d22 : 10 for 250sps , 00:500 sps
+    _max30001RegWrite(MAX30001_REG_CNFG_ECG, 0x825000); // d23 - d22 : 10 for 250sps , 00:500 sps
     delay(100);
 
-    _max30001RegWrite(CNFG_RTOR1, 0x3fc600);
+    _max30001RegWrite(MAX30001_REG_CNFG_RTOR1, 0x3fc600);
     _max30001Synch();
     delay(100);
 }
@@ -873,17 +853,17 @@ void MAX30001::BeginRtoRMode()
 {
     _max30001SwReset();
     delay(100);
-    _max30001RegWrite(CNFG_GEN, 0x080004);
+    _max30001RegWrite(MAX30001_REG_CNFG_GEN, 0x080004);
     delay(100);
-    _max30001RegWrite(CNFG_CAL, 0x720000); // 0x700000
+    _max30001RegWrite(MAX30001_REG_CNFG_CAL, 0x720000); // 0x700000
     delay(100);
-    _max30001RegWrite(CNFG_EMUX, 0x0B0000);
+    _max30001RegWrite(MAX30001_REG_CNFG_EMUX, 0x0B0000);
     delay(100);
-    _max30001RegWrite(CNFG_ECG, 0x805000); // d23 - d22 : 10 for 250sps , 00:500 sps
+    _max30001RegWrite(MAX30001_REG_CNFG_ECG, 0x805000); // d23 - d22 : 10 for 250sps , 00:500 sps
     delay(100);
-    _max30001RegWrite(CNFG_RTOR1, 0x3fc600);
+    _max30001RegWrite(MAX30001_REG_CNFG_RTOR1, 0x3fc600);
     delay(100);
-    _max30001RegWrite(EN_INT, 0x000401);
+    _max30001RegWrite(MAX30001_REG_EN_INT, 0x000401);
     delay(100);
     _max30001Synch();
     delay(100);
@@ -897,9 +877,9 @@ void MAX30001::max30001SetsamplingRate(uint16_t samplingRate)
     }
 
     max30001_cnfg_ecg_t cnfg_ecg;
-    _max30001RegRead24(CNFG_ECG, &cnfg_ecg.all);
+    _max30001RegRead24(MAX30001_REG_CNFG_ECG, &cnfg_ecg.all);
     cnfg_ecg.bit.rate = _rateToRegValue(rate);
-    _max30001RegWrite(CNFG_ECG, cnfg_ecg.all);
+    _max30001RegWrite(MAX30001_REG_CNFG_ECG, cnfg_ecg.all);
 
     _sample_rate = rate;
 }
@@ -907,7 +887,7 @@ void MAX30001::max30001SetsamplingRate(uint16_t samplingRate)
 signed long MAX30001::getECGSamples(void)
 {
     uint32_t word;
-    _max30001RegRead24(ECG_FIFO, &word);
+    _max30001RegRead24(MAX30001_REG_ECG_FIFO, &word);
 
     return decodeECG(word);
 }
@@ -915,15 +895,20 @@ signed long MAX30001::getECGSamples(void)
 signed long MAX30001::getBioZSamples(void)
 {
     uint32_t word;
-    _max30001RegRead24(BIOZ_FIFO, &word);
+    _max30001RegRead24(MAX30001_REG_BIOZ_FIFO, &word);
 
     return decodeBioZ(word);
 }
 
 void MAX30001::getHRandRR(void)
 {
+    _readRtoR();
+}
+
+void MAX30001::_readRtoR(void)
+{
     uint32_t rtor_reg;
-    _max30001RegRead24(RTOR, &rtor_reg);
+    _max30001RegRead24(MAX30001_REG_RTOR, &rtor_reg);
 
     // RTOR D[23:10]: R-to-R interval in units of 7.8125 ms
     uint16_t rtor = (rtor_reg >> 10) & 0x3FFF;
@@ -940,12 +925,17 @@ void MAX30001::getHRandRR(void)
 
 void MAX30001::max30001SetInterrupts(uint32_t interrupts_to_set)
 {
-    _max30001RegWrite(EN_INT, interrupts_to_set);
+    _max30001RegWrite(MAX30001_REG_EN_INT, interrupts_to_set);
 }
 
 void MAX30001::readStatus(void)
 {
-    _max30001RegRead24(STATUS, &global_status.all);
+    _readStatus();
+}
+
+void MAX30001::_readStatus(void)
+{
+    _max30001RegRead24(MAX30001_REG_STATUS, &global_status.all);
 }
 
 void MAX30001::_max30001ReadECGFIFO(int num_bytes)
@@ -958,7 +948,7 @@ void MAX30001::_max30001ReadECGFIFO(int num_bytes)
 
     digitalWrite(_cs_pin, LOW);
 
-    _spi->transfer((ECG_FIFO_BURST << 1) | RREG);
+    _spi->transfer((MAX30001_REG_ECG_FIFO_BURST << 1) | MAX30001_SPI_READ);
 
     for (int i = 0; i < num_bytes; i++)
     {
@@ -1001,7 +991,7 @@ void MAX30001::_max30001ReadBIOZFIFO(int num_bytes)
 
     digitalWrite(_cs_pin, LOW);
 
-    _spi->transfer((BIOZ_FIFO_BURST << 1) | RREG);
+    _spi->transfer((MAX30001_REG_BIOZ_FIFO_BURST << 1) | MAX30001_SPI_READ);
 
     for (int i = 0; i < num_bytes; i++)
     {
@@ -1038,17 +1028,17 @@ void MAX30001::max30001ServiceAllInterrupts(void)
 {
     max30001_mngr_int_t mngr_int;
 
-    readStatus();
+    _readStatus();
 
     if (global_status.bit.eint == 1) // ECG FIFO reached its threshold
     {
-        _max30001RegRead24(MNGR_INT, &mngr_int.all);
+        _max30001RegRead24(MAX30001_REG_MNGR_INT, &mngr_int.all);
         _max30001ReadECGFIFO((mngr_int.bit.e_fit + 1) * 3);
     }
 
     if (global_status.bit.bint == 1) // BioZ FIFO reached its threshold
     {
-        _max30001RegRead24(MNGR_INT, &mngr_int.all);
+        _max30001RegRead24(MAX30001_REG_MNGR_INT, &mngr_int.all);
         _max30001ReadBIOZFIFO((mngr_int.bit.b_fit + 1) * 3);
     }
 }

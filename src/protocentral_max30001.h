@@ -70,10 +70,21 @@
 #include <Arduino.h>
 #include <SPI.h>
 
+#define MAX30001_LIBRARY_VERSION "2.1.0"
+
+// Marks the 1.x-style API; it still works but will be removed in 3.0
+#if defined(__GNUC__)
+#define MAX30001_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#else
+#define MAX30001_DEPRECATED(msg)
+#endif
+
 // =============================================================================
 // SPI Configuration
 // =============================================================================
 #define MAX30001_SPI_SPEED 1000000
+#define MAX30001_SPI_WRITE 0x00
+#define MAX30001_SPI_READ 0x01
 
 // FIFO depths (samples)
 #define MAX30001_ECG_FIFO_DEPTH 32
@@ -82,39 +93,105 @@
 // =============================================================================
 // Register Addresses
 // =============================================================================
-#define WREG 0x00
-#define RREG 0x01
+#define MAX30001_REG_STATUS          0x01
+#define MAX30001_REG_EN_INT          0x02
+#define MAX30001_REG_EN_INT2         0x03
+#define MAX30001_REG_MNGR_INT        0x04
+#define MAX30001_REG_MNGR_DYN        0x05
+#define MAX30001_REG_SW_RST          0x08
+#define MAX30001_REG_SYNCH           0x09
+#define MAX30001_REG_FIFO_RST        0x0A
+#define MAX30001_REG_INFO            0x0F
+#define MAX30001_REG_CNFG_GEN        0x10
+#define MAX30001_REG_CNFG_CAL        0x12
+#define MAX30001_REG_CNFG_EMUX       0x14
+#define MAX30001_REG_CNFG_ECG        0x15
+#define MAX30001_REG_CNFG_BMUX       0x17
+#define MAX30001_REG_CNFG_BIOZ       0x18
+#define MAX30001_REG_CNFG_BIOZ_LC    0x1A
+#define MAX30001_REG_CNFG_RTOR1      0x1D
+#define MAX30001_REG_CNFG_RTOR2      0x1E
+#define MAX30001_REG_ECG_FIFO_BURST  0x20
+#define MAX30001_REG_ECG_FIFO        0x21
+#define MAX30001_REG_BIOZ_FIFO_BURST 0x22
+#define MAX30001_REG_BIOZ_FIFO       0x23
+#define MAX30001_REG_RTOR            0x25
+#define MAX30001_REG_NO_OP           0x7F
 
-#define STATUS 0x01
-#define EN_INT 0x02
-#define EN_INT2 0x03
-#define MNGR_INT 0x04
-#define MNGR_DYN 0x05
-#define SW_RST 0x08
-#define SYNCH 0x09
-#define FIFO_RST 0x0A
-#define INFO 0x0F
-#define CNFG_GEN 0x10
-#define CNFG_CAL 0x12
-#define CNFG_EMUX 0x14
-#define CNFG_ECG 0x15
+// EN_INT bits used by the driver
+#define MAX30001_EN_INT_EINT 0x800000UL
+#define MAX30001_EN_INT_BINT 0x080000UL
+#define MAX30001_INTB_TYPE_CMOS 0x000001UL
 
-#define CNFG_BIOZ_LC 0x1A
+// =============================================================================
+// Legacy names (1.x/2.0). Unprefixed names such as STATUS and INFO can clash
+// with other libraries: define MAX30001_NO_LEGACY_NAMES before including this
+// header to leave them out. They will be removed in 3.0.
+// =============================================================================
+#ifndef MAX30001_NO_LEGACY_NAMES
+#define WREG MAX30001_SPI_WRITE
+#define RREG MAX30001_SPI_READ
 
-#define CNFG_BMUX 0x17
-#define CNFG_BIOZ 0x18
+#define STATUS MAX30001_REG_STATUS
+#define EN_INT MAX30001_REG_EN_INT
+#define EN_INT2 MAX30001_REG_EN_INT2
+#define MNGR_INT MAX30001_REG_MNGR_INT
+#define MNGR_DYN MAX30001_REG_MNGR_DYN
+#define SW_RST MAX30001_REG_SW_RST
+#define SYNCH MAX30001_REG_SYNCH
+#define FIFO_RST MAX30001_REG_FIFO_RST
+#define INFO MAX30001_REG_INFO
+#define CNFG_GEN MAX30001_REG_CNFG_GEN
+#define CNFG_CAL MAX30001_REG_CNFG_CAL
+#define CNFG_EMUX MAX30001_REG_CNFG_EMUX
+#define CNFG_ECG MAX30001_REG_CNFG_ECG
+#define CNFG_BMUX MAX30001_REG_CNFG_BMUX
+#define CNFG_BIOZ MAX30001_REG_CNFG_BIOZ
+#define CNFG_BIOZ_LC MAX30001_REG_CNFG_BIOZ_LC
+#define CNFG_RTOR1 MAX30001_REG_CNFG_RTOR1
+#define CNFG_RTOR2 MAX30001_REG_CNFG_RTOR2
+#define ECG_FIFO_BURST MAX30001_REG_ECG_FIFO_BURST
+#define ECG_FIFO MAX30001_REG_ECG_FIFO
+#define BIOZ_FIFO_BURST MAX30001_REG_BIOZ_FIFO_BURST
+#define BIOZ_FIFO MAX30001_REG_BIOZ_FIFO
+#define RTOR MAX30001_REG_RTOR
+#define NO_OP MAX30001_REG_NO_OP
 
-#define CNFG_RTOR1 0x1D
-#define CNFG_RTOR2 0x1E
+#define CLK_PIN 6
+#define RTOR_INTR_MASK 0x04
 
-#define ECG_FIFO_BURST 0x20
-#define ECG_FIFO 0x21
+enum EN_INT_bits
+{
+  EN_EINT = 0x800000,
+  EN_ECG_FIFO_OVF = 0x400000,
+  EN_ECG_FAST_REC = 0x200000,
+  EN_DCLOFFINT = 0x100000,
+  EN_BIOZ_FIFO_INT = 0x80000,
+  EN_BIOZ_FIFO_OVF = 0x40000,
+  EN_BIOZ_OVER_RANGE = 0x20000,
+  EN_BIOZ_UNDER_RANGE = 0x10000,
+  EN_BIOZ_CG_MON = 0x8000,
 
-#define BIOZ_FIFO_BURST 0x22
-#define BIOZ_FIFO 0x23
+  EN_LONINT = 0x800,
+  EN_RRINT = 0x400,
+  EN_SAMP = 0x200,
+  EN_PLLINT = 0x100,
 
-#define RTOR 0x25
-#define NO_OP 0x7F
+  EN_BCGMP = 0x20,
+  EN_BCGMN = 0x10,
+  EN_LDOFF_PH = 0x8,
+  EN_LDOFF_PL = 0x4,
+  EN_LDOFF_NH = 0x2,
+  EN_LDOFF_NL = 0x1
+};
+
+typedef enum
+{
+  SAMPLINGRATE_128 = 128,
+  SAMPLINGRATE_256 = 256,
+  SAMPLINGRATE_512 = 512
+} sampRate;
+#endif // MAX30001_NO_LEGACY_NAMES
 
 // =============================================================================
 // New API: Error Codes and Type Definitions
@@ -218,34 +295,6 @@ typedef struct {
     uint8_t revision;             ///< Chip revision
     bool device_found;            ///< Device detection flag
 } max30001_device_info_t;
-
-#define CLK_PIN 6
-#define RTOR_INTR_MASK 0x04
-
-enum EN_INT_bits
-{
-  EN_EINT = 0x800000,
-  EN_ECG_FIFO_OVF = 0x400000,
-  EN_ECG_FAST_REC = 0x200000,
-  EN_DCLOFFINT = 0x100000,
-  EN_BIOZ_FIFO_INT = 0x80000,
-  EN_BIOZ_FIFO_OVF = 0x40000,
-  EN_BIOZ_OVER_RANGE = 0x20000,
-  EN_BIOZ_UNDER_RANGE = 0x10000,
-  EN_BIOZ_CG_MON = 0x8000,
-
-  EN_LONINT = 0x800,
-  EN_RRINT = 0x400,
-  EN_SAMP = 0x200,
-  EN_PLLINT = 0x100,
-
-  EN_BCGMP = 0x20,
-  EN_BCGMN = 0x10,
-  EN_LDOFF_PH = 0x8,
-  EN_LDOFF_PL = 0x4,
-  EN_LDOFF_NH = 0x2,
-  EN_LDOFF_NL = 0x1
-};
 
 typedef union max30001_status_reg
 {
@@ -475,14 +524,6 @@ typedef union max30001_cnfg_rtor2_reg
 
 } max30001_cnfg_rtor2_t;
 
-// Legacy typedef for backward compatibility
-typedef enum
-{
-  SAMPLINGRATE_128 = 128,
-  SAMPLINGRATE_256 = 256,
-  SAMPLINGRATE_512 = 512
-} sampRate;
-
 // =============================================================================
 // MAX30001 Class Declaration
 // =============================================================================
@@ -612,8 +653,13 @@ public:
    */
   max30001_error_t getLastError() const;
   
+  /**
+   * @brief Library version string, e.g. "2.1.0"
+   */
+  static const char* getLibraryVersion() { return MAX30001_LIBRARY_VERSION; }
+  
   // =========================================================================
-  // Advanced Configuration API (Phase 3)
+  // Configuration
   // =========================================================================
   
   /**
@@ -740,7 +786,8 @@ public:
   // Legacy Interface (Backward Compatibility)
   // =========================================================================
   
-  // Legacy public data members (deprecated - use new API methods instead)
+  // Legacy public data members (deprecated - use the sample structs instead;
+  // s32ECGData/s32BIOZData remain the output of max30001ServiceAllInterrupts())
   unsigned int heartRate;
   unsigned int RRinterval;
   signed long ecg_data;
@@ -751,21 +798,27 @@ public:
   signed long s32BIOZData[MAX30001_BIOZ_FIFO_DEPTH];
   
   // Legacy initialization methods
-  void BeginECGOnly();
-  void BeginECGBioZ();
-  void BeginRtoRMode();
+  MAX30001_DEPRECATED("use begin() + startECG()") void BeginECGOnly();
+  MAX30001_DEPRECATED("use begin() + startECGBioZ()") void BeginECGBioZ();
+  MAX30001_DEPRECATED("use begin() + startRtoR()") void BeginRtoRMode();
   
   // Legacy data acquisition methods
-  signed long getECGSamples(void);
-  signed long getBioZSamples(void);
-  void getHRandRR(void);
+  MAX30001_DEPRECATED("use getECGSample()") signed long getECGSamples(void);
+  MAX30001_DEPRECATED("use getBioZSample()") signed long getBioZSamples(void);
+  MAX30001_DEPRECATED("use getRtoRData()") void getHRandRR(void);
   
   // Legacy utility methods
-  bool max30001ReadInfo(void);
-  void max30001SetsamplingRate(uint16_t samplingRate);
-  void max30001SetInterrupts(uint32_t interrupts);
+  MAX30001_DEPRECATED("use isConnected() / getDeviceInfo()") bool max30001ReadInfo(void);
+  MAX30001_DEPRECATED("pass the rate to startECG()") void max30001SetsamplingRate(uint16_t samplingRate);
+  MAX30001_DEPRECATED("use enableInterrupt()") void max30001SetInterrupts(uint32_t interrupts);
+  MAX30001_DEPRECATED("use getLeadOffDetail() / getRtoRData()") void readStatus(void);
+  
+  /**
+   * @brief Burst-read the ECG/BioZ FIFOs when their interrupt flags are set
+   *
+   * Results go to s32ECGData[ecgSamplesAvailable] and s32BIOZData[biozSamplesAvailable].
+   */
   void max30001ServiceAllInterrupts();
-  void readStatus(void);
 
 private:
   // =========================================================================
@@ -797,6 +850,8 @@ private:
   void _max30001RegRead24(uint8_t Reg_address, uint32_t *read_data);
   void _max30001SwReset(void);
   void _max30001FIFOReset(void);
+  void _readStatus(void);
+  void _readRtoR(void);
   
   // Helper methods
   void _configure(bool ecg, bool bioz, max30001_sample_rate_t sample_rate,
