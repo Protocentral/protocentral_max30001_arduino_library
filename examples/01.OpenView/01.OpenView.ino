@@ -96,10 +96,14 @@ void setup()
 
     if (ecgSensor.begin() != MAX30001_SUCCESS ||
         ecgSensor.startECGBioZ(MAX30001_RATE_128, MAX30001_ECG_GAIN_80) != MAX30001_SUCCESS) {
-        // No text on the serial port: blink the built-in LED instead
+        // No text on the serial port: blink the built-in LED instead (if the board has one)
+#ifdef LED_BUILTIN
         pinMode(LED_BUILTIN, OUTPUT);
+#endif
         while (1) {
+#ifdef LED_BUILTIN
             digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+#endif
             delay(200);
         }
     }
