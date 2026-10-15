@@ -17,7 +17,7 @@ MAX30001 is a single-lead ECG monitoring IC with built-in R-R interval detection
 - Bio-impedance (BioZ) measurement for respiration monitoring
 - Hardware R-R interval (heartbeat) detection
 - Lead-off detection for electrode connectivity monitoring
-- Programmable gain (80 V/V or 160 V/V)
+- Programmable gain (20, 40, 80 or 160 V/V)
 - Adjustable digital filters
 - Ultra-low power consumption (85 µW)
 - Works with just 2 electrodes (no DRL electrode needed)
@@ -49,10 +49,10 @@ void setup() {
 void loop() {
     max30001_ecg_sample_t ecg;
     if (sensor.getECGSample(&ecg) == MAX30001_SUCCESS) {
-        float ecg_mv = sensor.convertECGToMicrovolts(ecg.ecg_sample, MAX30001_ECG_GAIN_80);
-        Serial.println(ecg_mv);
+        float ecg_uv = sensor.convertECGToMicrovolts(ecg.ecg_sample, MAX30001_ECG_GAIN_80);
+        Serial.println(ecg_uv);
     }
-    delay(8);  // ~128 SPS spacing
+    // getECGSample() returns MAX30001_ERROR_NOT_READY until the next sample is in the FIFO
 }
 ```
 
@@ -70,7 +70,7 @@ void loop() {
 - **Runtime gain adjustment**: `setECGGain()`
 - **Channel control**: `enableECG()`, `disableECG()`, `enableBioZ()`, `disableBioZ()`
 - **Filter tuning**: `setECGHighPassFilter()`, `setECGLowPassFilter()`
-- **Electrode monitoring**: `getLeadOffStatus()`, `getFIFOCount()`, `clearFIFO()`
+- **Electrode monitoring**: `getLeadOffStatus()`, `getLeadOffDetail()`, `clearFIFO()`
 - **Error handling**: Comprehensive error codes and status checking
 
 ### Measurement Structures
@@ -104,7 +104,7 @@ The library includes **5 complete working examples**:
 | **Example01_BasicECGBioZ** | Real-time ECG + BioZ streaming in ProtoCentral OpenView format |
 | **Example02_RtoRDetection** | Heart rate detection and R-R interval measurement |
 | **Example03_LeadOff** | Electrode connectivity monitoring |
-| **Example04_InterruptDriven** | ISR-based data acquisition (INT1 pin) |
+| **Example04_InterruptDriven** | ISR-based batch acquisition (INTB pin) |
 | **Example05_AdvancedConfig** | Runtime configuration changes (gain, filters, channels) |
 
 Load any example: **File → Examples → Protocentral MAX30001 → Example0X_...**
@@ -218,7 +218,7 @@ Stream real-time ECG and BioZ data to **[ProtoCentral OpenView](https://github.c
 
 1. Run **Example01_BasicECGBioZ** on your Arduino
 2. Open ProtoCentral OpenView
-3. Select the serial port and baud rate **57600**
+3. Select the **MAX30001 ECG & BioZ Breakout** board, the serial port and baud rate **115200**
 4. Click **Connect** to visualize waveforms in real-time
 
 ---
@@ -228,7 +228,7 @@ Stream real-time ECG and BioZ data to **[ProtoCentral OpenView](https://github.c
 | Parameter | Value |
 |-----------|-------|
 | ECG Sample Rates | 128, 256, 512 SPS |
-| ECG Gain | 80 V/V or 160 V/V |
+| ECG Gain | 20, 40, 80 or 160 V/V |
 | BioZ Sample Rate | Half of ECG rate (64/128/256 SPS) |
 | Power Consumption | 85 µW (typical) |
 | SPI Speed | 1 MHz |

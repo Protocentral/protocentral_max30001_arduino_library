@@ -75,6 +75,10 @@
 // =============================================================================
 #define MAX30001_SPI_SPEED 1000000
 
+// FIFO depths (samples)
+#define MAX30001_ECG_FIFO_DEPTH 32
+#define MAX30001_BIOZ_FIFO_DEPTH 8
+
 // =============================================================================
 // Register Addresses
 // =============================================================================
@@ -126,7 +130,7 @@ typedef enum {
     MAX30001_ERROR_SPI_COMMUNICATION,        ///< SPI communication error
     MAX30001_ERROR_DEVICE_NOT_FOUND,         ///< Device not responding
     MAX30001_ERROR_FIFO_OVERFLOW,            ///< FIFO overflow occurred
-    MAX30001_ERROR_NOT_READY                 ///< Data not ready
+    MAX30001_ERROR_NOT_READY                 ///< Data not ready (FIFO empty or channel not running)
 } max30001_error_t;
 
 /**
@@ -183,16 +187,28 @@ typedef struct {
     int32_t bioz_sample;          ///< Raw BioZ sample value
     uint32_t timestamp_ms;        ///< Sample timestamp in milliseconds
     bool sample_valid;            ///< Sample validity flag
+    bool out_of_range;            ///< BioZ over/under range (input saturated)
 } max30001_bioz_sample_t;
 
 /**
  * @brief R-R detection data structure
  */
 typedef struct {
-    uint16_t heart_rate_bpm;      ///< Heart rate in BPM
-    uint16_t rr_interval_ms;      ///< R-R interval in milliseconds
-    bool rr_detected;             ///< R-R detection flag
+    uint16_t heart_rate_bpm;      ///< Heart rate in BPM (from the last detected beat)
+    uint16_t rr_interval_ms;      ///< R-R interval in milliseconds (from the last detected beat)
+    bool rr_detected;             ///< true only when a new beat was detected since the last call
 } max30001_rtor_data_t;
+
+/**
+ * @brief DC lead-off status (comparator thresholds VMID +/- 300 mV)
+ */
+typedef struct {
+    bool any;                     ///< Lead-off on either electrode (DCLOFFINT)
+    bool p_high;                  ///< ECGP above the high threshold
+    bool p_low;                   ///< ECGP below the low threshold
+    bool n_high;                  ///< ECGN above the high threshold
+    bool n_low;                   ///< ECGN below the low threshold
+} max30001_leadoff_t;
 
 /**
  * @brief Device information structure
@@ -538,37 +554,41 @@ public:
   
   /**
    * @brief Start combined ECG + BioZ monitoring
-   * @param sample_rate ECG sample rate (BioZ will be half)
+   * @param sample_rate ECG sample rate (BioZ always runs at 64 SPS)
+   * @param gain ECG gain setting (default: 80 V/V)
    * @return Error code
    */
-  max30001_error_t startECGBioZ(max30001_sample_rate_t sample_rate = MAX30001_RATE_128);
+  max30001_error_t startECGBioZ(max30001_sample_rate_t sample_rate = MAX30001_RATE_128,
+                                max30001_ecg_gain_t gain = MAX30001_ECG_GAIN_80);
   
   /**
    * @brief Start ECG with R-R interval detection
    * @param sample_rate Desired sample rate (default: 128 SPS)
    * @param gain ECG gain setting (default: 80 V/V)
-   * @return Error code (convenience wrapper for startECG with R-R enabled internally)
+   * @return Error code (same as startECG; R-R detection is enabled with every ECG start)
    */
   max30001_error_t startRtoR(max30001_sample_rate_t sample_rate = MAX30001_RATE_128,
                              max30001_ecg_gain_t gain = MAX30001_ECG_GAIN_80);
   
   /**
-   * @brief Get single ECG sample
+   * @brief Read the next ECG sample from the FIFO
    * @param sample Pointer to store ECG sample data
-   * @return Error code
+   * @return MAX30001_SUCCESS, MAX30001_ERROR_NOT_READY if the FIFO is empty,
+   *         or MAX30001_ERROR_FIFO_OVERFLOW (the FIFO is reset)
    */
   max30001_error_t getECGSample(max30001_ecg_sample_t* sample);
   
   /**
-   * @brief Get single BioZ sample
+   * @brief Read the next BioZ sample from the FIFO (64 SPS)
    * @param sample Pointer to store BioZ sample data
-   * @return Error code
+   * @return MAX30001_SUCCESS, MAX30001_ERROR_NOT_READY if the FIFO is empty,
+   *         or MAX30001_ERROR_FIFO_OVERFLOW (the FIFO is reset)
    */
   max30001_error_t getBioZSample(max30001_bioz_sample_t* sample);
   
   /**
    * @brief Get R-R detection data
-   * @param rtor_data Pointer to store R-R data
+   * @param rtor_data Pointer to store R-R data; rr_detected is true only for a new beat
    * @return Error code
    */
   max30001_error_t getRtoRData(max30001_rtor_data_t* rtor_data);
@@ -598,7 +618,7 @@ public:
   
   /**
    * @brief Set ECG gain during runtime
-   * @param gain New gain setting (80, 160 V/V options)
+   * @param gain New gain setting (20, 40, 80 or 160 V/V)
    * @return Error code
    */
   max30001_error_t setECGGain(max30001_ecg_gain_t gain);
@@ -646,45 +666,60 @@ public:
   bool isBioZEnabled() const { return _bioz_enabled; }
   
   /**
-   * @brief Set ECG high-pass filter cutoff frequency
-   * @param cutoff_hz Cutoff frequency in Hz (typically 0.4, 0.8, 1.2 Hz)
+   * @brief Set ECG high-pass filter
+   * @param cutoff_hz 0 = bypass (DC coupled); any value > 0 selects 0.5 Hz, the only option
    * @return Error code
    */
   max30001_error_t setECGHighPassFilter(float cutoff_hz);
   
   /**
-   * @brief Set ECG low-pass filter cutoff frequency
-   * @param cutoff_hz Cutoff frequency in Hz (typically 40, 100 Hz)
+   * @brief Set ECG low-pass filter
+   * @param cutoff_hz 0 = bypass, otherwise the nearest of 40, 100 or 150 Hz.
+   *        100 Hz needs >= 256 SPS and 150 Hz needs 512 SPS; at 128 SPS the
+   *        filter is 28.35 Hz for any value > 0
    * @return Error code
    */
   max30001_error_t setECGLowPassFilter(float cutoff_hz);
   
   /**
-   * @brief Get lead-off detection status for both electrodes
+   * @brief Get DC lead-off status (enabled with every ECG start, 10 nA)
    * @return true if lead-off detected on either electrode, false if both connected
    */
   bool getLeadOffStatus();
   
   /**
-   * @brief Get FIFO sample count for ECG channel
-   * @return Number of samples available in FIFO
+   * @brief Get per-electrode DC lead-off status
+   * @param leadoff Pointer to store the status
+   * @return Error code
+   */
+  max30001_error_t getLeadOffDetail(max30001_leadoff_t* leadoff);
+  
+  /**
+   * @brief Number of ECG samples decoded by the last burst read (max30001ServiceAllInterrupts)
+   * @note The MAX30001 has no FIFO count register. With getECGSample(), poll until
+   *       it returns MAX30001_ERROR_NOT_READY instead
+   * @return Sample count
    */
   uint8_t getFIFOCount();
   
   /**
-   * @brief Clear/flush ECG FIFO buffer
+   * @brief Clear/flush the ECG and BioZ FIFOs
    * @return Error code
    */
   max30001_error_t clearFIFO();
   
   /**
-   * @brief Enable INT1 interrupt output
+   * @brief Enable the INTB output (CMOS, active low)
+   *
+   * INTB goes low while the ECG FIFO holds >= 16 samples, or the BioZ FIFO
+   * >= 4 samples when BioZ is running. Call after a start method, and drain
+   * both FIFOs on each interrupt so INTB returns high.
    * @return Error code
    */
   max30001_error_t enableInterrupt();
   
   /**
-   * @brief Disable INT1 interrupt output
+   * @brief Disable all INTB interrupt sources
    * @return Error code
    */
   max30001_error_t disableInterrupt();
@@ -712,8 +747,8 @@ public:
   signed long bioz_data;
   volatile int ecgSamplesAvailable;
   volatile int biozSamplesAvailable;
-  signed long s32ECGData[128];
-  signed long s32BIOZData[128];
+  signed long s32ECGData[MAX30001_ECG_FIFO_DEPTH];
+  signed long s32BIOZData[MAX30001_BIOZ_FIFO_DEPTH];
   
   // Legacy initialization methods
   void BeginECGOnly();
@@ -747,8 +782,8 @@ private:
   bool _bioz_enabled;
   
   max30001_status_t global_status;
-  volatile unsigned char _readBufferECG[128];
-  volatile unsigned char _readBufferBIOZ[128];
+  volatile unsigned char _readBufferECG[MAX30001_ECG_FIFO_DEPTH * 3];
+  volatile unsigned char _readBufferBIOZ[MAX30001_BIOZ_FIFO_DEPTH * 3];
   
   // =========================================================================
   // Private Methods - Low-Level Hardware Interface
@@ -764,6 +799,8 @@ private:
   void _max30001FIFOReset(void);
   
   // Helper methods
+  void _configure(bool ecg, bool bioz, max30001_sample_rate_t sample_rate,
+                  max30001_ecg_gain_t gain);
   max30001_error_t _validateSampleRate(max30001_sample_rate_t rate);
   uint8_t _rateToRegValue(max30001_sample_rate_t rate);
   uint8_t _getSampleDelayMs(max30001_sample_rate_t rate) const;
