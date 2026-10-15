@@ -303,12 +303,12 @@ max30001_error_t MAX30001::startBioZ(max30001_sample_rate_t sample_rate)
     cnfg_bioz.bit.rate = 0;
     cnfg_bioz.bit.ahpf = 0b010;
     cnfg_bioz.bit.ln_bioz = 1;
-    cnfg_bioz.bit.gain = 0b01;
-    cnfg_bioz.bit.dhpf = 0b010;
+    cnfg_bioz.bit.gain = 0b00;     // 10 V/V: ADC full scale ~6.25 kOhm at 16 uA (20 V/V clipped at ~3.1 kOhm)
+    cnfg_bioz.bit.dhpf = 0b01;     // 0.05 Hz (0.5 Hz is a 4th-order filter and removes respiration)
     cnfg_bioz.bit.dlpf = 0x01;
     cnfg_bioz.bit.fcgen = 0b0100;
     cnfg_bioz.bit.cgmag = 0b010;
-    cnfg_bioz.bit.phoff = 0x0011;
+    cnfg_bioz.bit.phoff = 0b0011;  // 33.75 deg
     
     _max30001RegWrite(CNFG_BIOZ, cnfg_bioz.all);
     delay(100);
@@ -902,6 +902,12 @@ void MAX30001::BeginECGBioZ()
     max30001_cnfg_ecg_t cnfg_ecg;
     max30001_cnfg_bmux_t cnfg_bmux;
     max30001_cnfg_bioz_t cnfg_bioz;
+
+    cnfg_gen.all = 0;
+    cnfg_emux.all = 0;
+    cnfg_ecg.all = 0;
+    cnfg_bmux.all = 0;
+    cnfg_bioz.all = 0;
     
     // CONFIG GEN Register Settings
     cnfg_gen.bit.en_ulp_lon = 0; // ULP Lead-ON Disabled
@@ -933,13 +939,13 @@ void MAX30001::BeginECGBioZ()
     cnfg_bioz.bit.ahpf = 0b010;
     cnfg_bioz.bit.ext_rbias = 0x00;
     cnfg_bioz.bit.ln_bioz = 1;
-    cnfg_bioz.bit.gain = 0b01; //(20 V/V)
-    cnfg_bioz.bit.dhpf = 0b010;
+    cnfg_bioz.bit.gain = 0b00; // 10 V/V: ADC full scale ~6.25 kOhm at 16 uA (20 V/V clipped at ~3.1 kOhm)
+    cnfg_bioz.bit.dhpf = 0b01; // 0.05 Hz (0.5 Hz is a 4th-order filter and removes respiration)
     cnfg_bioz.bit.dlpf = 0x01;
     cnfg_bioz.bit.fcgen = 0b0100;
     cnfg_bioz.bit.cgmon = 0x00;
     cnfg_bioz.bit.cgmag = 0b010;
-    cnfg_bioz.bit.phoff = 0x0011;
+    cnfg_bioz.bit.phoff = 0b0011; // 33.75 deg
 
     // BioZ MUX Settings
     cnfg_bmux.bit.openp = 0;
