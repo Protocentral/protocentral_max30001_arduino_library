@@ -38,7 +38,11 @@ Samples queue in on-chip FIFOs (32 ECG, 8 BioZ). The library reads them one at a
 - **Heart rate:** on-chip R-to-R detection, reported once per beat
 - **Lead-off:** DC lead-off on both electrodes, with per-electrode high/low flags
 - **Interrupts:** FIFO-threshold interrupt on the INTB pin, plus burst FIFO reads
-- **Configuration:** ECG gain, high-pass and low-pass filters, channel enable/disable at runtime
+- **Configuration:** ECG gain, filters and polarity; BioZ gain, drive current and frequency, filters and phase; R-to-R detector tuning; fast recovery; lead bias. Settings are kept across start calls
+- **Respiration in ohms:** `convertBioZToOhms()` at the current gain and drive current
+- **Self-test:** built-in BioZ test resistor and ECG calibration signal, no person needed
+- **Lead-on detection:** ultra-low-power wait for electrode contact, with an optional interrupt
+- **Diagnostics:** latched status flags (FIFO overflow, BioZ over/under range, drive-current monitor, PLL) and a register dump
 - **Standalone:** `depends=` is empty, so there is nothing else to install
 - **Host boards:** Uno, Nano, Mega, Leonardo, Uno R4, Nano 33 BLE, ESP32, ESP32-C3 and RP2040
 
@@ -171,6 +175,29 @@ if (sensor.getRtoRData(&rr) == MAX30001_SUCCESS && rr.rr_detected) {
 | `enableECG()` / `disableECG()` / `isECGEnabled()` | Pause or resume the ECG channel |
 | `enableBioZ()` / `disableBioZ()` / `isBioZEnabled()` | Pause or resume the BioZ channel |
 | `getSampleRate()` | Current ECG sample rate |
+| `setECGPolarity(inverted)` | Swap ECGP and ECGN |
+| `setLeadOffDetection(enable, current, threshold)` | DC lead-off on/off, 5–100 nA, VMID ± 300–500 mV (default on, 10 nA, 300 mV) |
+| `setRtoRConfig(const max30001_rtor_config_t&)` | R-to-R detector window, gain, thresholds and hold-off; the struct defaults are the datasheet defaults |
+| `setFastRecovery(mode, threshold)` | Off, manual or automatic ECG fast recovery after saturation |
+| `setLeadBias(mode, resistance)` | Internal 50/100/200 MΩ lead bias on the ECG or BioZ inputs (off by default; the RL electrode biases the body) |
+
+### BioZ configuration
+
+Settings are kept and applied on every BioZ start; they also apply immediately while BioZ is running.
+
+| Method | Description |
+|---|---|
+| `setBioZGain(gain)` / `getBioZGain()` | 10 (default), 20, 40 or 80 V/V |
+| `setBioZCurrent(current)` / `getBioZCurrent()` | 8–96 µA (default 16 µA). Higher currents need higher frequencies (96 µA ≥ 18 kHz, 32 µA ≥ 4 kHz, 16 µA ≥ 2 kHz) |
+| `setBioZFrequency(freq)` / `getBioZFrequency()` | 128 kHz down to 125 Hz (default 8 kHz). Below ~500 Hz the board's 47 nF drive capacitors limit the current |
+| `setBioZPhaseOffset(step)` | Demodulation phase, 0–15 × 11.25° (default 3) |
+| `setBioZHighPassFilter(hz)` | `0` = bypass, < 0.25 = 0.05 Hz (default), otherwise 0.5 Hz. 0.5 Hz removes most of the respiration signal |
+| `setBioZLowPassFilter(hz)` | `0` = bypass, else the nearest of 4 (default), 8 or 16 Hz |
+| `setBioZAnalogHighPass(ahpf)` | 60 Hz–4 kHz or bypass (default 500 Hz) |
+| `setBioZExternalBias(enable)` | Use an external 324 kΩ resistor on RBIAS (±10 % current accuracy instead of ±30 %); only on boards with it fitted |
+| `setBioZLeadOff(over, under, over_threshold, under_threshold)` | Flag BioZ over-range (2- and 4-electrode) or under-range (4-electrode) |
+| `setBioZCurrentMonitor(enable)` | Flag a drive electrode off (4-electrode BioZ) |
+| `convertBioZToOhms(raw)` | BioZ counts to ohms. Keep drive current × total impedance under 90 mV |
 
 ### Lead-off, FIFO and interrupts
 
@@ -182,6 +209,18 @@ if (sensor.getRtoRData(&rr) == MAX30001_SUCCESS && rr.rr_detected) {
 | `clearFIFO()` | Reset both FIFOs |
 | `max30001ServiceAllInterrupts()` | Burst-read the FIFOs into `s32ECGData[]` / `s32BIOZData[]` |
 | `getFIFOCount()` | Samples from the last burst read (the chip has no FIFO count register) |
+
+### Self-test, lead-on and diagnostics
+
+| Method | Description |
+|---|---|
+| `enableECGTestSignal(freq, half_millivolt)` / `disableECGTestSignal()` | Disconnect the ECG inputs and apply a ±0.5 or ±0.25 mV square wave |
+| `enableBioZTestLoad(rnom, rmod, freq)` / `disableBioZTestLoad()` | Disconnect BIP/BIN and switch in the built-in 625–5000 Ω test resistor, with a modulated step. Call `setBioZHighPassFilter(0)` to read the nominal value |
+| `bioZTestLoadOhms(rnom)` / `bioZTestLoadModulationOhms(rnom, rmod)` | Expected values of the test resistor |
+| `startLeadOnDetection(interrupt)` / `isLeadOn()` | Stop both channels and wait for electrode contact in ultra-low-power mode; then call a start method |
+| `getStatus(max30001_status_flags_t*)` | Flags latched since the last call: FIFO overflows, ECG lead-off, BioZ over/under range, drive-current monitor, fast recovery, lead-on, PLL unlocked |
+| `synchronize()` | Restart timing and FIFOs; issue on every board together when boards share one FCLK |
+| `printRegisters(Stream&)` | Print every configuration and status register |
 
 ### Constants
 
@@ -225,7 +264,8 @@ This layout is shared with OpenView's `max30001` board descriptor. The sketch pr
 - A start method must be called after `begin()`.
 
 **Flat or noisy respiration**
-- Check `out_of_range` on the BioZ samples, or raw values pinned near ±524287: the electrode-plus-body impedance is above the BioZ input range. Use fresh gel electrodes with good skin contact.
+- Check `out_of_range` on the BioZ samples, or raw values pinned near ±524287: the electrode-plus-body impedance is above the BioZ input range. Use fresh gel electrodes with good skin contact, or lower the drive current with `setBioZCurrent(MAX30001_BIOZ_CURRENT_8UA)`.
+- To check the board itself, use `enableBioZTestLoad()`: a known resistor with a known step, no person needed.
 - Keep RA and LA on the chest, and stay still. Small ripples on the breathing wave at heart rate are the cardiac impedance signal, not noise.
 
 **Flat or noisy ECG**

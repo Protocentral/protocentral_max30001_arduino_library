@@ -121,6 +121,7 @@
 // EN_INT bits used by the driver
 #define MAX30001_EN_INT_EINT 0x800000UL
 #define MAX30001_EN_INT_BINT 0x080000UL
+#define MAX30001_EN_INT_LONINT 0x000800UL
 #define MAX30001_INTB_TYPE_CMOS 0x000001UL
 
 // =============================================================================
@@ -295,6 +296,176 @@ typedef struct {
     uint8_t revision;             ///< Chip revision
     bool device_found;            ///< Device detection flag
 } max30001_device_info_t;
+
+/**
+ * @brief BioZ drive current (peak). Higher currents need higher frequencies:
+ *        96 uA needs >= 18 kHz, 32 uA >= 4 kHz, 16 uA >= 2 kHz, 8 uA below that
+ */
+typedef enum {
+    MAX30001_BIOZ_CURRENT_8UA = 1,
+    MAX30001_BIOZ_CURRENT_16UA = 2,
+    MAX30001_BIOZ_CURRENT_32UA = 3,
+    MAX30001_BIOZ_CURRENT_48UA = 4,
+    MAX30001_BIOZ_CURRENT_64UA = 5,
+    MAX30001_BIOZ_CURRENT_80UA = 6,
+    MAX30001_BIOZ_CURRENT_96UA = 7
+} max30001_bioz_current_t;
+
+/**
+ * @brief BioZ drive frequency (FCGEN). Below ~500 Hz the board's 47 nF drive
+ *        capacitors limit the current; the datasheet asks for 220 nF at 125 Hz
+ */
+typedef enum {
+    MAX30001_BIOZ_FREQ_128KHZ = 0,   ///< 131072 Hz
+    MAX30001_BIOZ_FREQ_80KHZ = 1,    ///< 81920 Hz
+    MAX30001_BIOZ_FREQ_40KHZ = 2,    ///< 40960 Hz
+    MAX30001_BIOZ_FREQ_18KHZ = 3,    ///< 18204 Hz
+    MAX30001_BIOZ_FREQ_8KHZ = 4,     ///< 8192 Hz (default)
+    MAX30001_BIOZ_FREQ_4KHZ = 5,     ///< 4096 Hz
+    MAX30001_BIOZ_FREQ_2KHZ = 6,     ///< 2048 Hz
+    MAX30001_BIOZ_FREQ_1KHZ = 7,     ///< 1024 Hz
+    MAX30001_BIOZ_FREQ_500HZ = 8,    ///< 512 Hz
+    MAX30001_BIOZ_FREQ_250HZ = 9,    ///< 256 Hz
+    MAX30001_BIOZ_FREQ_125HZ = 10    ///< 128 Hz
+} max30001_bioz_freq_t;
+
+/**
+ * @brief BioZ analog high-pass filter (before demodulation)
+ */
+typedef enum {
+    MAX30001_BIOZ_AHPF_60HZ = 0,
+    MAX30001_BIOZ_AHPF_150HZ = 1,
+    MAX30001_BIOZ_AHPF_500HZ = 2,    ///< Default
+    MAX30001_BIOZ_AHPF_1000HZ = 3,
+    MAX30001_BIOZ_AHPF_2000HZ = 4,
+    MAX30001_BIOZ_AHPF_4000HZ = 5,
+    MAX30001_BIOZ_AHPF_BYPASS = 6
+} max30001_bioz_ahpf_t;
+
+/**
+ * @brief Built-in BioZ test resistor: nominal value
+ */
+typedef enum {
+    MAX30001_BIOZ_RNOM_5000 = 0,     ///< 5000 Ohm
+    MAX30001_BIOZ_RNOM_2500 = 1,     ///< 2500 Ohm
+    MAX30001_BIOZ_RNOM_1667 = 2,     ///< 1667 Ohm
+    MAX30001_BIOZ_RNOM_1250 = 3,     ///< 1250 Ohm
+    MAX30001_BIOZ_RNOM_1000 = 4,     ///< 1000 Ohm
+    MAX30001_BIOZ_RNOM_833 = 5,      ///< 833 Ohm
+    MAX30001_BIOZ_RNOM_714 = 6,      ///< 714 Ohm
+    MAX30001_BIOZ_RNOM_625 = 7       ///< 625 Ohm
+} max30001_bioz_rnom_t;
+
+/**
+ * @brief Built-in BioZ test resistor: modulation step (see bioZTestLoadModulationOhms())
+ */
+typedef enum {
+    MAX30001_BIOZ_RMOD_0 = 0,        ///< Largest step
+    MAX30001_BIOZ_RMOD_1 = 1,
+    MAX30001_BIOZ_RMOD_2 = 2,        ///< Smallest step; only with RNOM 5000, 2500 or 1667
+    MAX30001_BIOZ_RMOD_NONE = 4      ///< Unmodulated (DC = RNOM)
+} max30001_bioz_rmod_t;
+
+/**
+ * @brief Built-in BioZ test resistor modulation frequency
+ */
+typedef enum {
+    MAX30001_BIOZ_TEST_FREQ_4HZ = 0,
+    MAX30001_BIOZ_TEST_FREQ_1HZ = 1,
+    MAX30001_BIOZ_TEST_FREQ_0_25HZ = 2,
+    MAX30001_BIOZ_TEST_FREQ_0_0625HZ = 3
+} max30001_bioz_test_freq_t;
+
+/**
+ * @brief ECG calibration (test) signal frequency
+ */
+typedef enum {
+    MAX30001_CAL_FREQ_256HZ = 0,
+    MAX30001_CAL_FREQ_64HZ = 1,
+    MAX30001_CAL_FREQ_16HZ = 2,
+    MAX30001_CAL_FREQ_4HZ = 3,
+    MAX30001_CAL_FREQ_1HZ = 4,
+    MAX30001_CAL_FREQ_0_25HZ = 5,
+    MAX30001_CAL_FREQ_0_0625HZ = 6,
+    MAX30001_CAL_FREQ_0_015HZ = 7
+} max30001_cal_freq_t;
+
+/**
+ * @brief DC lead-off current
+ */
+typedef enum {
+    MAX30001_LEADOFF_CURRENT_5NA = 1,
+    MAX30001_LEADOFF_CURRENT_10NA = 2,   ///< Default
+    MAX30001_LEADOFF_CURRENT_20NA = 3,
+    MAX30001_LEADOFF_CURRENT_50NA = 4,
+    MAX30001_LEADOFF_CURRENT_100NA = 5
+} max30001_leadoff_current_t;
+
+/**
+ * @brief DC lead-off comparator threshold (VMID +/- value)
+ */
+typedef enum {
+    MAX30001_LEADOFF_THRESHOLD_300MV = 0,   ///< Default
+    MAX30001_LEADOFF_THRESHOLD_400MV = 1,
+    MAX30001_LEADOFF_THRESHOLD_450MV = 2,
+    MAX30001_LEADOFF_THRESHOLD_500MV = 3
+} max30001_leadoff_threshold_t;
+
+/**
+ * @brief ECG fast recovery (high-pass bypass after saturation)
+ */
+typedef enum {
+    MAX30001_FAST_RECOVERY_OFF = 0,      ///< Default
+    MAX30001_FAST_RECOVERY_MANUAL = 1,   ///< On until switched off
+    MAX30001_FAST_RECOVERY_AUTO = 2      ///< 500 ms after the ECG output stays past the threshold for 125 ms
+} max30001_fast_recovery_t;
+
+/**
+ * @brief Internal resistive lead bias. The breakout biases the body through
+ *        the RL electrode, so this is only needed when RL is not used
+ */
+typedef enum {
+    MAX30001_LEAD_BIAS_OFF = 0,          ///< Default
+    MAX30001_LEAD_BIAS_ECG = 1,          ///< On ECGP/ECGN
+    MAX30001_LEAD_BIAS_BIOZ = 2          ///< On BIP/BIN
+} max30001_lead_bias_t;
+
+typedef enum {
+    MAX30001_LEAD_BIAS_50MOHM = 0,
+    MAX30001_LEAD_BIAS_100MOHM = 1,      ///< Default
+    MAX30001_LEAD_BIAS_200MOHM = 2
+} max30001_lead_bias_resistance_t;
+
+/**
+ * @brief R-to-R detector settings, as register codes (datasheet CNFG_RTOR1/2).
+ *        The defaults are the datasheet defaults
+ */
+typedef struct {
+    uint8_t window = 3;           ///< WNDW: averaging window (WNDW*2+6) x 8 ms, 0-11 (default 96 ms)
+    uint8_t gain = 15;            ///< RGAIN: 2^gain, 15 = auto-scale
+    uint8_t peak_average = 2;     ///< PAVG: 0-3 = 2, 4, 8, 16
+    uint8_t peak_threshold = 3;   ///< PTSF: threshold = (code+1)/16 of the peak average
+    uint8_t holdoff_min = 32;     ///< HOFF: minimum hold-off, code x 8 ms (0-63)
+    uint8_t interval_average = 2; ///< RAVG: 0-3 = 2, 4, 8, 16
+    uint8_t holdoff_scale = 4;    ///< RHSF: dynamic hold-off = code/8 of the average interval (0-7)
+} max30001_rtor_config_t;
+
+/**
+ * @brief Status flags, latched since the last getStatus() call
+ */
+typedef struct {
+    bool ecg_fifo_overflow;       ///< EOVF
+    bool bioz_fifo_overflow;      ///< BOVF
+    bool ecg_lead_off;            ///< DCLOFFINT
+    bool bioz_over_range;         ///< BOVER (needs setBioZLeadOff())
+    bool bioz_under_range;        ///< BUNDR (needs setBioZLeadOff())
+    bool bioz_drive_off;          ///< BCGMON (needs setBioZCurrentMonitor())
+    bool bioz_drive_p_off;        ///< BCGMP
+    bool bioz_drive_n_off;        ///< BCGMN
+    bool fast_recovery;           ///< FSTINT
+    bool lead_on;                 ///< LONINT (lead-on detection mode)
+    bool pll_unlocked;            ///< PLLINT
+} max30001_status_flags_t;
 
 typedef union max30001_status_reg
 {
@@ -771,6 +942,214 @@ public:
   max30001_error_t disableInterrupt();
   
   /**
+   * @brief Invert the ECG input polarity
+   * @param inverted true swaps ECGP and ECGN
+   * @return Error code
+   */
+  max30001_error_t setECGPolarity(bool inverted);
+  
+  /**
+   * @brief Configure DC lead-off detection (applied now and on every ECG start)
+   * @param enable false turns the lead-off current sources off
+   * @param current Lead-off current
+   * @param threshold Comparator threshold
+   * @return Error code
+   */
+  max30001_error_t setLeadOffDetection(bool enable,
+                                       max30001_leadoff_current_t current = MAX30001_LEADOFF_CURRENT_10NA,
+                                       max30001_leadoff_threshold_t threshold = MAX30001_LEADOFF_THRESHOLD_300MV);
+  
+  /**
+   * @brief Configure the R-to-R detector (applied now and on every ECG start)
+   * @param config Detector settings; a default-constructed struct holds the datasheet defaults
+   * @return Error code
+   */
+  max30001_error_t setRtoRConfig(const max30001_rtor_config_t& config);
+  
+  /**
+   * @brief Configure ECG fast recovery
+   * @param mode Off, manual or automatic
+   * @param threshold Auto mode: ECG output threshold in units of 2048 counts (0-63)
+   * @return Error code
+   */
+  max30001_error_t setFastRecovery(max30001_fast_recovery_t mode, uint8_t threshold = 0x3F);
+  
+  /**
+   * @brief Configure the internal resistive lead bias
+   * @param mode Off, on the ECG inputs, or on the BioZ inputs
+   * @param resistance Bias resistance
+   * @return Error code
+   */
+  max30001_error_t setLeadBias(max30001_lead_bias_t mode,
+                               max30001_lead_bias_resistance_t resistance = MAX30001_LEAD_BIAS_100MOHM);
+  
+  // =========================================================================
+  // BioZ Configuration
+  // (settings are kept and applied on every BioZ start; setters also apply
+  //  them immediately while BioZ is running)
+  // =========================================================================
+  
+  /**
+   * @brief Set BioZ gain
+   * @param gain 10, 20, 40 or 80 V/V (default 10 V/V)
+   * @return Error code
+   */
+  max30001_error_t setBioZGain(max30001_bioz_gain_t gain);
+  max30001_bioz_gain_t getBioZGain() const { return _bioz_gain; }
+  
+  /**
+   * @brief Set BioZ drive current. Keep current x (body + electrode impedance)
+   *        under 90 mV peak at the BIP/BIN pins
+   * @param current Drive current (default 16 uA)
+   * @return MAX30001_ERROR_INVALID_PARAMETER if the current is not allowed at the drive frequency
+   */
+  max30001_error_t setBioZCurrent(max30001_bioz_current_t current);
+  max30001_bioz_current_t getBioZCurrent() const { return _bioz_current; }
+  
+  /**
+   * @brief Set BioZ drive frequency
+   * @param frequency Drive frequency (default 8 kHz)
+   * @return MAX30001_ERROR_INVALID_PARAMETER if the current drive current is not allowed at it
+   */
+  max30001_error_t setBioZFrequency(max30001_bioz_freq_t frequency);
+  max30001_bioz_freq_t getBioZFrequency() const { return _bioz_freq; }
+  
+  /**
+   * @brief Set the BioZ demodulation phase offset
+   * @param step 0-15, 11.25 deg per step (22.5 deg at 80 kHz, 45 deg at 128 kHz; default 3)
+   * @return Error code
+   */
+  max30001_error_t setBioZPhaseOffset(uint8_t step);
+  
+  /**
+   * @brief Set the BioZ digital high-pass filter (4th-order)
+   * @param cutoff_hz 0 = bypass (DC), < 0.25 = 0.05 Hz (default), otherwise 0.5 Hz.
+   *        0.5 Hz removes most of the respiration signal
+   * @return Error code
+   */
+  max30001_error_t setBioZHighPassFilter(float cutoff_hz);
+  
+  /**
+   * @brief Set the BioZ digital low-pass filter
+   * @param cutoff_hz 0 = bypass, otherwise the nearest of 4 (default), 8 or 16 Hz
+   * @return Error code
+   */
+  max30001_error_t setBioZLowPassFilter(float cutoff_hz);
+  
+  /**
+   * @brief Set the BioZ analog high-pass filter (keep it well below the drive frequency)
+   * @param ahpf Cutoff (default 500 Hz)
+   * @return Error code
+   */
+  max30001_error_t setBioZAnalogHighPass(max30001_bioz_ahpf_t ahpf);
+  
+  /**
+   * @brief Use the external 324 kOhm bias resistor on RBIAS for the drive current
+   *        (+/-10 % instead of +/-30 %). Only on boards with that resistor fitted
+   * @param enable true to use the external resistor
+   * @return Error code
+   */
+  max30001_error_t setBioZExternalBias(bool enable);
+  
+  /**
+   * @brief Enable BioZ over/under-range (AC lead-off) detection
+   * @param over_range Flag readings beyond +/- 2048 x over_threshold for 128 ms (2- and 4-electrode)
+   * @param under_range Flag readings within +/- 32 x under_threshold for 128 ms (4-electrode only)
+   * @return Error code
+   */
+  max30001_error_t setBioZLeadOff(bool over_range, bool under_range,
+                                  uint8_t over_threshold = 0xFF, uint8_t under_threshold = 0xFF);
+  
+  /**
+   * @brief Enable the drive current monitor (detects a DRVP/DRVN electrode
+   *        off in 4-electrode BioZ; read with getStatus())
+   * @param enable true to enable
+   * @return Error code
+   */
+  max30001_error_t setBioZCurrentMonitor(bool enable);
+  
+  /**
+   * @brief Convert a raw BioZ sample to ohms at the current gain and drive current
+   * @param raw_value Raw BioZ sample
+   * @return Impedance in ohms (internal bias: +/-30 % absolute accuracy)
+   */
+  float convertBioZToOhms(int32_t raw_value) const;
+  
+  // =========================================================================
+  // Self-Test, Lead-On and Diagnostics
+  // =========================================================================
+  
+  /**
+   * @brief Disconnect the ECG inputs and apply the internal calibration square wave
+   * @param frequency Square-wave frequency
+   * @param half_millivolt true = +/-0.5 mV, false = +/-0.25 mV (bipolar)
+   * @return Error code (ECG must be running)
+   */
+  max30001_error_t enableECGTestSignal(max30001_cal_freq_t frequency = MAX30001_CAL_FREQ_1HZ,
+                                       bool half_millivolt = true);
+  max30001_error_t disableECGTestSignal();
+  
+  /**
+   * @brief Disconnect BIP/BIN and switch in the built-in test resistor
+   *
+   * The reading is RNOM plus a square-wave step. The default 0.05 Hz high-pass
+   * removes RNOM itself; call setBioZHighPassFilter(0) to read it.
+   * @param rnom Nominal resistance
+   * @param rmod Modulation step (MAX30001_BIOZ_RMOD_NONE for DC only)
+   * @param frequency Modulation frequency
+   * @return Error code (BioZ must be running)
+   */
+  max30001_error_t enableBioZTestLoad(max30001_bioz_rnom_t rnom,
+                                      max30001_bioz_rmod_t rmod = MAX30001_BIOZ_RMOD_0,
+                                      max30001_bioz_test_freq_t frequency = MAX30001_BIOZ_TEST_FREQ_1HZ);
+  max30001_error_t disableBioZTestLoad();
+  
+  /**
+   * @brief Nominal value of the built-in test resistor, in ohms
+   */
+  static float bioZTestLoadOhms(max30001_bioz_rnom_t rnom);
+  
+  /**
+   * @brief Modulation step of the built-in test resistor, in ohms (0 if not available)
+   */
+  static float bioZTestLoadModulationOhms(max30001_bioz_rnom_t rnom, max30001_bioz_rmod_t rmod);
+  
+  /**
+   * @brief Stop both channels and wait for electrode contact in ultra-low-power mode
+   *
+   * Poll isLeadOn(), or enable the INTB interrupt here, then call a start method.
+   * @param interrupt true drives INTB low on lead-on
+   * @return Error code
+   */
+  max30001_error_t startLeadOnDetection(bool interrupt = false);
+  
+  /**
+   * @brief Check for electrode contact in lead-on detection mode
+   * @return true once the electrodes are on
+   */
+  bool isLeadOn();
+  
+  /**
+   * @brief Read status flags latched since the last call (also those seen by
+   *        other library calls), then clear them
+   * @param flags Pointer to store the flags
+   * @return Error code
+   */
+  max30001_error_t getStatus(max30001_status_flags_t* flags);
+  
+  /**
+   * @brief Restart the ECG/BioZ timing and FIFOs. Issue on all boards together
+   *        when several boards share one FCLK, or after changing BioZ settings
+   */
+  void synchronize();
+  
+  /**
+   * @brief Print every configuration and status register
+   * @param out Destination, e.g. Serial
+   */
+  void printRegisters(Stream& out);
+  
+  /**
    * @brief Get current sample rate
    * @return Current sample rate setting
    */
@@ -834,6 +1213,30 @@ private:
   bool _ecg_enabled;
   bool _bioz_enabled;
   
+  // Settings applied by _configure() and the setters
+  max30001_bioz_gain_t _bioz_gain;
+  max30001_bioz_current_t _bioz_current;
+  max30001_bioz_freq_t _bioz_freq;
+  max30001_bioz_ahpf_t _bioz_ahpf;
+  uint8_t _bioz_phoff;
+  uint8_t _bioz_dhpf;
+  uint8_t _bioz_dlpf;
+  bool _bioz_ext_rbias;
+  bool _bioz_cgmon;
+  uint8_t _bloff_mode;
+  uint8_t _bloff_hi;
+  uint8_t _bloff_lo;
+  bool _leadoff_enabled;
+  max30001_leadoff_current_t _leadoff_current;
+  max30001_leadoff_threshold_t _leadoff_threshold;
+  max30001_rtor_config_t _rtor;
+  max30001_fast_recovery_t _fast_mode;
+  uint8_t _fast_threshold;
+  max30001_lead_bias_t _lead_bias;
+  max30001_lead_bias_resistance_t _lead_bias_res;
+  bool _ecg_inverted;
+  uint32_t _status_latched;
+  
   max30001_status_t global_status;
   volatile unsigned char _readBufferECG[MAX30001_ECG_FIFO_DEPTH * 3];
   volatile unsigned char _readBufferBIOZ[MAX30001_BIOZ_FIFO_DEPTH * 3];
@@ -852,6 +1255,16 @@ private:
   void _max30001FIFOReset(void);
   void _readStatus(void);
   void _readRtoR(void);
+  
+  // Register values built from the settings above
+  uint32_t _genValue(bool ecg, bool bioz, bool lead_on_detect) const;
+  uint32_t _biozValue() const;
+  uint32_t _emuxValue() const;
+  uint32_t _mngrDynValue() const;
+  uint32_t _rtor1Value() const;
+  uint32_t _rtor2Value() const;
+  uint32_t _bmuxValue() const;
+  max30001_error_t _applyBioZ();
   
   // Helper methods
   void _configure(bool ecg, bool bioz, max30001_sample_rate_t sample_rate,

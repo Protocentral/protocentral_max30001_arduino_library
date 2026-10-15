@@ -21,6 +21,11 @@ All notable changes to this library are documented here. The format follows
 - **01.OpenView** now matches the OpenView MAX30001 descriptor: 115200 baud, ECG/BioZ/HR/RR payload, packets only.
 
 ### Added
+- **BioZ configuration:** `setBioZGain()`, `setBioZCurrent()` (checked against the drive frequency), `setBioZFrequency()`, `setBioZPhaseOffset()`, `setBioZHighPassFilter()`, `setBioZLowPassFilter()`, `setBioZAnalogHighPass()`, `setBioZExternalBias()`, `setBioZLeadOff()`, `setBioZCurrentMonitor()`, and `convertBioZToOhms()`.
+- **ECG configuration:** `setECGPolarity()`, `setLeadOffDetection()` (current and threshold), `setRtoRConfig()`, `setFastRecovery()`, `setLeadBias()`. Settings are kept and applied on every start.
+- **Self-test:** `enableBioZTestLoad()` (built-in 625-5000 Ohm test resistor with a modulated step) with `bioZTestLoadOhms()` / `bioZTestLoadModulationOhms()`, and `enableECGTestSignal()` (internal calibration square wave).
+- **Lead-on detection:** `startLeadOnDetection()` / `isLeadOn()`, with an optional INTB interrupt.
+- **Diagnostics:** `getStatus()` returns status flags latched since the last call, including those seen by other library calls. `printRegisters()` dumps the registers. `synchronize()` issues SYNCH for multi-board setups.
 - `getLeadOffDetail()` for per-electrode lead-off, and `out_of_range` on BioZ samples.
 - An optional ECG gain argument on `startECGBioZ()`.
 - `MAX30001_LIBRARY_VERSION` and `getLibraryVersion()`.
@@ -32,6 +37,7 @@ All notable changes to this library are documented here. The format follows
 - FIFO buffers are sized to the chip FIFOs, saving about 1 kB of RAM. Every example now fits on an Arduino Uno.
 - Register writes no longer hold CS low for 4 ms, and the start methods no longer wait 100 ms after each register.
 - The library no longer prints to `Serial`.
+- The calibration sources are now off unless a test signal is enabled (CNFG_CAL was written with EN_VCAL set but not routed).
 - CI compiles on the same board list as the other ProtoCentral libraries, including the Uno and Uno R4.
 
 ### Deprecated

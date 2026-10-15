@@ -74,7 +74,17 @@ static inline uint32_t bytesToWord(const volatile uint8_t *b)
 MAX30001::MAX30001(uint8_t cs_pin, SPIClass* spi_interface)
     : _spi(spi_interface), _cs_pin(cs_pin), _last_error(MAX30001_SUCCESS),
       _initialized(false), _ecg_gain(MAX30001_ECG_GAIN_80),
-      _sample_rate(MAX30001_RATE_128), _ecg_enabled(false), _bioz_enabled(false)
+      _sample_rate(MAX30001_RATE_128), _ecg_enabled(false), _bioz_enabled(false),
+      _bioz_gain(MAX30001_BIOZ_GAIN_10), _bioz_current(MAX30001_BIOZ_CURRENT_16UA),
+      _bioz_freq(MAX30001_BIOZ_FREQ_8KHZ), _bioz_ahpf(MAX30001_BIOZ_AHPF_500HZ),
+      _bioz_phoff(0b0011), _bioz_dhpf(0b01), _bioz_dlpf(0b01),
+      _bioz_ext_rbias(false), _bioz_cgmon(false),
+      _bloff_mode(0), _bloff_hi(0xFF), _bloff_lo(0xFF),
+      _leadoff_enabled(true), _leadoff_current(MAX30001_LEADOFF_CURRENT_10NA),
+      _leadoff_threshold(MAX30001_LEADOFF_THRESHOLD_300MV),
+      _fast_mode(MAX30001_FAST_RECOVERY_OFF), _fast_threshold(0x3F),
+      _lead_bias(MAX30001_LEAD_BIAS_OFF), _lead_bias_res(MAX30001_LEAD_BIAS_100MOHM),
+      _ecg_inverted(false), _status_latched(0)
 {
     // Initialize legacy members
     heartRate = 0;
@@ -214,32 +224,115 @@ max30001_error_t MAX30001::getDeviceInfo(max30001_device_info_t* info)
 // Channel configuration (shared by all start methods)
 // =============================================================================
 
-void MAX30001::_configure(bool ecg, bool bioz, max30001_sample_rate_t sample_rate,
-                          max30001_ecg_gain_t gain)
+// CNFG_CAL with the calibration sources off (needed for the BioZ test load)
+#define MAX30001_CAL_OFF 0x004800UL  // FCAL = 1 Hz, FIFTY = 1, EN_VCAL = 0
+
+uint32_t MAX30001::_genValue(bool ecg, bool bioz, bool lead_on_detect) const
 {
     max30001_cnfg_gen_t cnfg_gen;
-    max30001_cnfg_ecg_t cnfg_ecg;
-    max30001_cnfg_emux_t cnfg_emux;
-    max30001_cnfg_bioz_t cnfg_bioz;
-    max30001_cnfg_bmux_t cnfg_bmux;
-    max30001_cnfg_rtor1_t cnfg_rtor1;
-    max30001_mngr_int_t mngr_int;
-
-    _max30001SwReset();
 
     cnfg_gen.all = 0;
     cnfg_gen.bit.en_ecg = ecg ? 1 : 0;
     cnfg_gen.bit.en_bioz = bioz ? 1 : 0;
     cnfg_gen.bit.fmstr = 0b00;      // 32768 Hz: ECG 512/256/128 sps, BioZ 64 sps
-    cnfg_gen.bit.rbiasv = 0b01;     // 100 MOhm (lead bias itself stays disabled)
-    if (ecg) {
-        cnfg_gen.bit.en_dcloff = 0b01; // DC lead-off on ECGP/ECGN
-        cnfg_gen.bit.imag = 0b010;     // 10 nA
-        cnfg_gen.bit.vth = 0b00;       // VMID +/- 300 mV
+    cnfg_gen.bit.rbiasv = _lead_bias_res;
+    if (lead_on_detect) {
+        cnfg_gen.bit.en_ulp_lon = 0b01;
     }
-    _max30001RegWrite(MAX30001_REG_CNFG_GEN, cnfg_gen.all);
+    if (ecg && _leadoff_enabled) {
+        cnfg_gen.bit.en_dcloff = 0b01;
+        cnfg_gen.bit.imag = _leadoff_current;
+        cnfg_gen.bit.vth = _leadoff_threshold;
+    }
+    if (bioz) {
+        cnfg_gen.bit.en_bloff = _bloff_mode;
+    }
+    if ((_lead_bias == MAX30001_LEAD_BIAS_ECG && ecg) ||
+        (_lead_bias == MAX30001_LEAD_BIAS_BIOZ && bioz)) {
+        cnfg_gen.bit.en_rbias = _lead_bias;
+        cnfg_gen.bit.rbiasp = 1;
+        cnfg_gen.bit.rbiasn = 1;
+    }
+    return cnfg_gen.all;
+}
 
-    _max30001RegWrite(MAX30001_REG_CNFG_CAL, 0x720000); // Calibration sources disabled
+uint32_t MAX30001::_biozValue() const
+{
+    max30001_cnfg_bioz_t cnfg_bioz;
+
+    cnfg_bioz.all = 0;
+    cnfg_bioz.bit.rate = 0;         // 64 sps
+    cnfg_bioz.bit.ahpf = _bioz_ahpf;
+    cnfg_bioz.bit.ext_rbias = _bioz_ext_rbias ? 1 : 0;
+    cnfg_bioz.bit.ln_bioz = 1;
+    cnfg_bioz.bit.gain = _bioz_gain;
+    cnfg_bioz.bit.dhpf = _bioz_dhpf;
+    cnfg_bioz.bit.dlpf = _bioz_dlpf;
+    cnfg_bioz.bit.fcgen = _bioz_freq;
+    cnfg_bioz.bit.cgmon = _bioz_cgmon ? 1 : 0;
+    cnfg_bioz.bit.cgmag = _bioz_current;
+    cnfg_bioz.bit.phoff = _bioz_phoff;
+    return cnfg_bioz.all;
+}
+
+uint32_t MAX30001::_emuxValue() const
+{
+    max30001_cnfg_emux_t cnfg_emux;
+
+    cnfg_emux.all = 0;              // ECGP/ECGN connected, no calibration
+    cnfg_emux.bit.pol = _ecg_inverted ? 1 : 0;
+    return cnfg_emux.all;
+}
+
+uint32_t MAX30001::_bmuxValue() const
+{
+    max30001_cnfg_bmux_t cnfg_bmux;
+
+    cnfg_bmux.all = 0;              // BIP/BIN connected, no calibration
+    cnfg_bmux.bit.rmod = 0b100;     // Test load off
+    return cnfg_bmux.all;
+}
+
+uint32_t MAX30001::_mngrDynValue() const
+{
+    return ((uint32_t)_fast_mode << 22) | ((uint32_t)_fast_threshold << 16) |
+           ((uint32_t)_bloff_hi << 8) | (uint32_t)_bloff_lo;
+}
+
+uint32_t MAX30001::_rtor1Value() const
+{
+    max30001_cnfg_rtor1_t cnfg_rtor1;
+
+    cnfg_rtor1.all = 0;
+    cnfg_rtor1.bit.wndw = _rtor.window;
+    cnfg_rtor1.bit.gain = _rtor.gain;
+    cnfg_rtor1.bit.en_rtor = 1;
+    cnfg_rtor1.bit.pavg = _rtor.peak_average;
+    cnfg_rtor1.bit.ptsf = _rtor.peak_threshold;
+    return cnfg_rtor1.all;
+}
+
+uint32_t MAX30001::_rtor2Value() const
+{
+    max30001_cnfg_rtor2_t cnfg_rtor2;
+
+    cnfg_rtor2.all = 0;
+    cnfg_rtor2.bit.hoff = _rtor.holdoff_min;
+    cnfg_rtor2.bit.ravg = _rtor.interval_average;
+    cnfg_rtor2.bit.rhsf = _rtor.holdoff_scale;
+    return cnfg_rtor2.all;
+}
+
+void MAX30001::_configure(bool ecg, bool bioz, max30001_sample_rate_t sample_rate,
+                          max30001_ecg_gain_t gain)
+{
+    max30001_cnfg_ecg_t cnfg_ecg;
+    max30001_mngr_int_t mngr_int;
+
+    _max30001SwReset();
+
+    _max30001RegWrite(MAX30001_REG_CNFG_GEN, _genValue(ecg, bioz, false));
+    _max30001RegWrite(MAX30001_REG_CNFG_CAL, MAX30001_CAL_OFF);
 
     // RRINT is cleared by reading RTOR, so a STATUS read elsewhere cannot drop a beat
     mngr_int.all = 0;
@@ -248,6 +341,7 @@ void MAX30001::_configure(bool ecg, bool bioz, max30001_sample_rate_t sample_rat
     mngr_int.bit.clr_rrint = 0b01;
     mngr_int.bit.clr_samp = 1;
     _max30001RegWrite(MAX30001_REG_MNGR_INT, mngr_int.all);
+    _max30001RegWrite(MAX30001_REG_MNGR_DYN, _mngrDynValue());
 
     if (ecg) {
         cnfg_ecg.all = 0;
@@ -256,40 +350,15 @@ void MAX30001::_configure(bool ecg, bool bioz, max30001_sample_rate_t sample_rat
         cnfg_ecg.bit.dhpf = 0b1;    // 0.5 Hz high-pass
         cnfg_ecg.bit.dlpf = 0b01;   // ~40 Hz low-pass (28 Hz at 128 sps)
         _max30001RegWrite(MAX30001_REG_CNFG_ECG, cnfg_ecg.all);
-
-        cnfg_emux.all = 0;          // ECGP/ECGN connected, no calibration, normal polarity
-        _max30001RegWrite(MAX30001_REG_CNFG_EMUX, cnfg_emux.all);
-
-        // Datasheet defaults for the R-to-R detector, with EN_RTOR set
-        cnfg_rtor1.all = 0;
-        cnfg_rtor1.bit.wndw = 0b0011;   // 96 ms
-        cnfg_rtor1.bit.gain = 0b1111;   // Auto-scale
-        cnfg_rtor1.bit.en_rtor = 1;
-        cnfg_rtor1.bit.pavg = 0b10;     // 8
-        cnfg_rtor1.bit.ptsf = 0b0011;   // 4/16
-        _max30001RegWrite(MAX30001_REG_CNFG_RTOR1, cnfg_rtor1.all);
+        _max30001RegWrite(MAX30001_REG_CNFG_EMUX, _emuxValue());
+        _max30001RegWrite(MAX30001_REG_CNFG_RTOR1, _rtor1Value());
+        _max30001RegWrite(MAX30001_REG_CNFG_RTOR2, _rtor2Value());
     }
 
     if (bioz) {
-        cnfg_bioz.all = 0;
-        cnfg_bioz.bit.rate = 0;         // 64 sps
-        cnfg_bioz.bit.ahpf = 0b010;     // 500 Hz
-        cnfg_bioz.bit.ext_rbias = 0;
-        cnfg_bioz.bit.ln_bioz = 1;
-        cnfg_bioz.bit.gain = 0b00;      // 10 V/V: ADC full scale ~6.25 kOhm at 16 uA (20 V/V clipped at ~3.1 kOhm)
-        cnfg_bioz.bit.dhpf = 0b01;      // 0.05 Hz (0.5 Hz is a 4th-order filter and removes respiration)
-        cnfg_bioz.bit.dlpf = 0b01;      // 4 Hz
-        cnfg_bioz.bit.fcgen = 0b0100;   // ~8 kHz
-        cnfg_bioz.bit.cgmon = 0;
-        cnfg_bioz.bit.cgmag = 0b010;    // 16 uA
-        cnfg_bioz.bit.phoff = 0b0011;   // 33.75 deg
-        _max30001RegWrite(MAX30001_REG_CNFG_BIOZ, cnfg_bioz.all);
-
+        _max30001RegWrite(MAX30001_REG_CNFG_BIOZ, _biozValue());
         _max30001RegWrite(MAX30001_REG_CNFG_BIOZ_LC, 0x800000); // High current range (8-96 uA)
-
-        cnfg_bmux.all = 0;              // BIP/BIN connected, no calibration
-        cnfg_bmux.bit.rmod = 0b100;     // Built-in modulated resistor load off
-        _max30001RegWrite(MAX30001_REG_CNFG_BMUX, cnfg_bmux.all);
+        _max30001RegWrite(MAX30001_REG_CNFG_BMUX, _bmuxValue());
     }
 
     _max30001Synch();
@@ -771,6 +840,484 @@ max30001_error_t MAX30001::disableInterrupt()
     return MAX30001_SUCCESS;
 }
 
+max30001_error_t MAX30001::setECGPolarity(bool inverted)
+{
+    _ecg_inverted = inverted;
+
+    if (_initialized && _ecg_enabled) {
+        _max30001RegWrite(MAX30001_REG_CNFG_EMUX, _emuxValue());
+    }
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+max30001_error_t MAX30001::setLeadOffDetection(bool enable, max30001_leadoff_current_t current,
+                                               max30001_leadoff_threshold_t threshold)
+{
+    if (current < MAX30001_LEADOFF_CURRENT_5NA || current > MAX30001_LEADOFF_CURRENT_100NA ||
+        threshold > MAX30001_LEADOFF_THRESHOLD_500MV) {
+        _last_error = MAX30001_ERROR_INVALID_PARAMETER;
+        return _last_error;
+    }
+
+    _leadoff_enabled = enable;
+    _leadoff_current = current;
+    _leadoff_threshold = threshold;
+
+    if (_initialized && (_ecg_enabled || _bioz_enabled)) {
+        _max30001RegWrite(MAX30001_REG_CNFG_GEN, _genValue(_ecg_enabled, _bioz_enabled, false));
+    }
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+max30001_error_t MAX30001::setRtoRConfig(const max30001_rtor_config_t& config)
+{
+    if (config.window > 11 || config.gain > 15 || config.peak_average > 3 ||
+        config.peak_threshold > 15 || config.holdoff_min > 63 ||
+        config.interval_average > 3 || config.holdoff_scale > 7) {
+        _last_error = MAX30001_ERROR_INVALID_PARAMETER;
+        return _last_error;
+    }
+
+    _rtor = config;
+
+    if (_initialized && _ecg_enabled) {
+        _max30001RegWrite(MAX30001_REG_CNFG_RTOR1, _rtor1Value());
+        _max30001RegWrite(MAX30001_REG_CNFG_RTOR2, _rtor2Value());
+    }
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+max30001_error_t MAX30001::setFastRecovery(max30001_fast_recovery_t mode, uint8_t threshold)
+{
+    if (mode > MAX30001_FAST_RECOVERY_AUTO || threshold > 0x3F) {
+        _last_error = MAX30001_ERROR_INVALID_PARAMETER;
+        return _last_error;
+    }
+
+    _fast_mode = mode;
+    _fast_threshold = threshold;
+
+    if (_initialized && (_ecg_enabled || _bioz_enabled)) {
+        _max30001RegWrite(MAX30001_REG_MNGR_DYN, _mngrDynValue());
+    }
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+max30001_error_t MAX30001::setLeadBias(max30001_lead_bias_t mode,
+                                       max30001_lead_bias_resistance_t resistance)
+{
+    if (mode > MAX30001_LEAD_BIAS_BIOZ || resistance > MAX30001_LEAD_BIAS_200MOHM) {
+        _last_error = MAX30001_ERROR_INVALID_PARAMETER;
+        return _last_error;
+    }
+
+    _lead_bias = mode;
+    _lead_bias_res = resistance;
+
+    if (_initialized && (_ecg_enabled || _bioz_enabled)) {
+        _max30001RegWrite(MAX30001_REG_CNFG_GEN, _genValue(_ecg_enabled, _bioz_enabled, false));
+    }
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+// =============================================================================
+// BioZ Configuration
+// =============================================================================
+
+// Table 41: highest drive current allowed at each drive frequency
+static bool biozCurrentAllowed(max30001_bioz_current_t current, max30001_bioz_freq_t freq)
+{
+    if (freq <= MAX30001_BIOZ_FREQ_18KHZ) return true;
+    if (freq == MAX30001_BIOZ_FREQ_8KHZ) return current <= MAX30001_BIOZ_CURRENT_80UA;
+    if (freq == MAX30001_BIOZ_FREQ_4KHZ) return current <= MAX30001_BIOZ_CURRENT_32UA;
+    if (freq == MAX30001_BIOZ_FREQ_2KHZ) return current <= MAX30001_BIOZ_CURRENT_16UA;
+    return current <= MAX30001_BIOZ_CURRENT_8UA;
+}
+
+max30001_error_t MAX30001::_applyBioZ()
+{
+    if (_initialized && _bioz_enabled) {
+        _max30001RegWrite(MAX30001_REG_CNFG_BIOZ, _biozValue());
+    }
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+max30001_error_t MAX30001::setBioZGain(max30001_bioz_gain_t gain)
+{
+    if (gain > MAX30001_BIOZ_GAIN_80) {
+        _last_error = MAX30001_ERROR_INVALID_PARAMETER;
+        return _last_error;
+    }
+
+    _bioz_gain = gain;
+    return _applyBioZ();
+}
+
+max30001_error_t MAX30001::setBioZCurrent(max30001_bioz_current_t current)
+{
+    if (current < MAX30001_BIOZ_CURRENT_8UA || current > MAX30001_BIOZ_CURRENT_96UA ||
+        !biozCurrentAllowed(current, _bioz_freq)) {
+        _last_error = MAX30001_ERROR_INVALID_PARAMETER;
+        return _last_error;
+    }
+
+    _bioz_current = current;
+    return _applyBioZ();
+}
+
+max30001_error_t MAX30001::setBioZFrequency(max30001_bioz_freq_t frequency)
+{
+    if (frequency > MAX30001_BIOZ_FREQ_125HZ || !biozCurrentAllowed(_bioz_current, frequency)) {
+        _last_error = MAX30001_ERROR_INVALID_PARAMETER;
+        return _last_error;
+    }
+
+    _bioz_freq = frequency;
+    return _applyBioZ();
+}
+
+max30001_error_t MAX30001::setBioZPhaseOffset(uint8_t step)
+{
+    if (step > 15) {
+        _last_error = MAX30001_ERROR_INVALID_PARAMETER;
+        return _last_error;
+    }
+
+    _bioz_phoff = step;
+    return _applyBioZ();
+}
+
+max30001_error_t MAX30001::setBioZHighPassFilter(float cutoff_hz)
+{
+    if (cutoff_hz <= 0.0f) {
+        _bioz_dhpf = 0b00;
+    } else if (cutoff_hz < 0.25f) {
+        _bioz_dhpf = 0b01;
+    } else {
+        _bioz_dhpf = 0b10;
+    }
+    return _applyBioZ();
+}
+
+max30001_error_t MAX30001::setBioZLowPassFilter(float cutoff_hz)
+{
+    if (cutoff_hz <= 0.0f) {
+        _bioz_dlpf = 0b00;
+    } else if (cutoff_hz < 6.0f) {
+        _bioz_dlpf = 0b01;
+    } else if (cutoff_hz < 12.0f) {
+        _bioz_dlpf = 0b10;
+    } else {
+        _bioz_dlpf = 0b11;
+    }
+    return _applyBioZ();
+}
+
+max30001_error_t MAX30001::setBioZAnalogHighPass(max30001_bioz_ahpf_t ahpf)
+{
+    if (ahpf > MAX30001_BIOZ_AHPF_BYPASS) {
+        _last_error = MAX30001_ERROR_INVALID_PARAMETER;
+        return _last_error;
+    }
+
+    _bioz_ahpf = ahpf;
+    return _applyBioZ();
+}
+
+max30001_error_t MAX30001::setBioZExternalBias(bool enable)
+{
+    _bioz_ext_rbias = enable;
+    return _applyBioZ();
+}
+
+max30001_error_t MAX30001::setBioZCurrentMonitor(bool enable)
+{
+    _bioz_cgmon = enable;
+    return _applyBioZ();
+}
+
+max30001_error_t MAX30001::setBioZLeadOff(bool over_range, bool under_range,
+                                          uint8_t over_threshold, uint8_t under_threshold)
+{
+    // EN_BLOFF: 01 = under range, 10 = over range, 11 = both
+    _bloff_mode = (over_range ? 0b10 : 0) | (under_range ? 0b01 : 0);
+    _bloff_hi = over_threshold;
+    _bloff_lo = under_threshold;
+
+    if (_initialized && (_ecg_enabled || _bioz_enabled)) {
+        _max30001RegWrite(MAX30001_REG_MNGR_DYN, _mngrDynValue());
+        _max30001RegWrite(MAX30001_REG_CNFG_GEN, _genValue(_ecg_enabled, _bioz_enabled, false));
+    }
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+float MAX30001::convertBioZToOhms(int32_t raw_value) const
+{
+    // BioZ = ADC x VREF / (2^19 x CGMAG x GAIN), VREF = 1 V
+    static const uint8_t current_ua[] = {0, 8, 16, 32, 48, 64, 80, 96};
+    float gain_vv = (float)(10 << _bioz_gain);
+
+    return (float)raw_value * (1000000.0f / 524288.0f) /
+           ((float)current_ua[_bioz_current & 0x07] * gain_vv);
+}
+
+// =============================================================================
+// Self-Test, Lead-On and Diagnostics
+// =============================================================================
+
+max30001_error_t MAX30001::enableECGTestSignal(max30001_cal_freq_t frequency, bool half_millivolt)
+{
+    if (!_initialized || !_ecg_enabled) {
+        _last_error = MAX30001_ERROR_NOT_READY;
+        return _last_error;
+    }
+
+    if (frequency > MAX30001_CAL_FREQ_0_015HZ) {
+        _last_error = MAX30001_ERROR_INVALID_PARAMETER;
+        return _last_error;
+    }
+
+    // EN_VCAL, bipolar (VMID +/- VMAG), 50 % duty cycle
+    uint32_t cal = (1UL << 22) | (1UL << 21) | (half_millivolt ? (1UL << 20) : 0) |
+                   ((uint32_t)frequency << 12) | (1UL << 11);
+    _max30001RegWrite(MAX30001_REG_CNFG_CAL, cal);
+
+    // Isolate ECGP/ECGN from the electrodes; ECGP = VCALP, ECGN = VCALN
+    max30001_cnfg_emux_t cnfg_emux;
+    cnfg_emux.all = _emuxValue();
+    cnfg_emux.bit.openp = 1;
+    cnfg_emux.bit.openn = 1;
+    cnfg_emux.bit.calp_sel = 0b10;
+    cnfg_emux.bit.caln_sel = 0b11;
+    _max30001RegWrite(MAX30001_REG_CNFG_EMUX, cnfg_emux.all);
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+max30001_error_t MAX30001::disableECGTestSignal()
+{
+    if (!_initialized) {
+        _last_error = MAX30001_ERROR_NOT_INITIALIZED;
+        return _last_error;
+    }
+
+    _max30001RegWrite(MAX30001_REG_CNFG_EMUX, _emuxValue());
+    _max30001RegWrite(MAX30001_REG_CNFG_CAL, MAX30001_CAL_OFF);
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+max30001_error_t MAX30001::enableBioZTestLoad(max30001_bioz_rnom_t rnom, max30001_bioz_rmod_t rmod,
+                                              max30001_bioz_test_freq_t frequency)
+{
+    if (!_initialized || !_bioz_enabled) {
+        _last_error = MAX30001_ERROR_NOT_READY;
+        return _last_error;
+    }
+
+    if (rnom > MAX30001_BIOZ_RNOM_625 || frequency > MAX30001_BIOZ_TEST_FREQ_0_0625HZ ||
+        (rmod != MAX30001_BIOZ_RMOD_NONE && bioZTestLoadModulationOhms(rnom, rmod) <= 0.0f)) {
+        _last_error = MAX30001_ERROR_INVALID_PARAMETER;
+        return _last_error;
+    }
+
+    // The test load only works with the calibration sources off
+    _max30001RegWrite(MAX30001_REG_CNFG_CAL, MAX30001_CAL_OFF);
+
+    // Open BIP/BIN so the body does not load the test resistor
+    max30001_cnfg_bmux_t cnfg_bmux;
+    cnfg_bmux.all = 0;
+    cnfg_bmux.bit.openp = 1;
+    cnfg_bmux.bit.openn = 1;
+    cnfg_bmux.bit.en_bist = 1;
+    cnfg_bmux.bit.rnom = rnom;
+    cnfg_bmux.bit.rmod = rmod;
+    cnfg_bmux.bit.fbist = frequency;
+    _max30001RegWrite(MAX30001_REG_CNFG_BMUX, cnfg_bmux.all);
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+max30001_error_t MAX30001::disableBioZTestLoad()
+{
+    if (!_initialized) {
+        _last_error = MAX30001_ERROR_NOT_INITIALIZED;
+        return _last_error;
+    }
+
+    _max30001RegWrite(MAX30001_REG_CNFG_BMUX, _bmuxValue());
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+float MAX30001::bioZTestLoadOhms(max30001_bioz_rnom_t rnom)
+{
+    static const uint16_t nominal[] = {5000, 2500, 1667, 1250, 1000, 833, 714, 625};
+    return (rnom <= MAX30001_BIOZ_RNOM_625) ? (float)nominal[rnom] : 0.0f;
+}
+
+float MAX30001::bioZTestLoadModulationOhms(max30001_bioz_rnom_t rnom, max30001_bioz_rmod_t rmod)
+{
+    // Table 36, in tenths of a milliohm; 0 = combination not available
+    static const uint16_t modulation[8][3] = {
+        {29607, 9806, 2475},
+        {7404, 2452, 619},
+        {3291, 1090, 275},
+        {1851, 613, 0},
+        {1185, 392, 0},
+        {823, 272, 0},
+        {605, 200, 0},
+        {463, 153, 0},
+    };
+
+    if (rnom > MAX30001_BIOZ_RNOM_625 || rmod > MAX30001_BIOZ_RMOD_2) {
+        return 0.0f;
+    }
+    return (float)modulation[rnom][rmod] / 10000.0f;
+}
+
+max30001_error_t MAX30001::startLeadOnDetection(bool interrupt)
+{
+    if (!_initialized) {
+        _last_error = MAX30001_ERROR_NOT_INITIALIZED;
+        return _last_error;
+    }
+
+    // ULP lead-on detection only runs with both channels off
+    _max30001RegWrite(MAX30001_REG_CNFG_GEN, _genValue(false, false, true));
+    _ecg_enabled = false;
+    _bioz_enabled = false;
+
+    // LONINT is set when the mode is entered; one STATUS read clears it
+    _max30001RegRead24(MAX30001_REG_STATUS, &global_status.all);
+
+    _max30001RegWrite(MAX30001_REG_EN_INT, interrupt ? (MAX30001_EN_INT_LONINT | MAX30001_INTB_TYPE_CMOS)
+                                                     : MAX30001_INTB_TYPE_CMOS);
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+bool MAX30001::isLeadOn()
+{
+    if (!_initialized) {
+        return false;
+    }
+
+    _readStatus();
+    return global_status.bit.lonint;
+}
+
+max30001_error_t MAX30001::getStatus(max30001_status_flags_t* flags)
+{
+    if (flags == nullptr) {
+        _last_error = MAX30001_ERROR_INVALID_PARAMETER;
+        return _last_error;
+    }
+
+    if (!_initialized) {
+        _last_error = MAX30001_ERROR_NOT_INITIALIZED;
+        return _last_error;
+    }
+
+    _readStatus();
+
+    max30001_status_t latched;
+    latched.all = _status_latched;
+    _status_latched = 0;
+
+    flags->ecg_fifo_overflow = latched.bit.eovf;
+    flags->bioz_fifo_overflow = latched.bit.bovf;
+    flags->ecg_lead_off = latched.bit.dcloffint;
+    flags->bioz_over_range = latched.bit.bover;
+    flags->bioz_under_range = latched.bit.bundr;
+    flags->bioz_drive_off = latched.bit.bcgmon;
+    flags->bioz_drive_p_off = latched.bit.bcgmp;
+    flags->bioz_drive_n_off = latched.bit.bcgmn;
+    flags->fast_recovery = latched.bit.fstint;
+    flags->lead_on = latched.bit.lonint;
+    flags->pll_unlocked = latched.bit.pllint;
+
+    _last_error = MAX30001_SUCCESS;
+    return MAX30001_SUCCESS;
+}
+
+void MAX30001::synchronize()
+{
+    _max30001Synch();
+}
+
+static const __FlashStringHelper* registerName(uint8_t reg)
+{
+    switch (reg) {
+        case MAX30001_REG_STATUS:     return F("STATUS");
+        case MAX30001_REG_EN_INT:     return F("EN_INT");
+        case MAX30001_REG_EN_INT2:    return F("EN_INT2");
+        case MAX30001_REG_MNGR_INT:   return F("MNGR_INT");
+        case MAX30001_REG_MNGR_DYN:   return F("MNGR_DYN");
+        case MAX30001_REG_INFO:       return F("INFO");
+        case MAX30001_REG_CNFG_GEN:   return F("CNFG_GEN");
+        case MAX30001_REG_CNFG_CAL:   return F("CNFG_CAL");
+        case MAX30001_REG_CNFG_EMUX:  return F("CNFG_EMUX");
+        case MAX30001_REG_CNFG_ECG:   return F("CNFG_ECG");
+        case MAX30001_REG_CNFG_BMUX:  return F("CNFG_BMUX");
+        case MAX30001_REG_CNFG_BIOZ:  return F("CNFG_BIOZ");
+        case MAX30001_REG_CNFG_BIOZ_LC: return F("CNFG_BIOZ_LC");
+        case MAX30001_REG_CNFG_RTOR1: return F("CNFG_RTOR1");
+        case MAX30001_REG_CNFG_RTOR2: return F("CNFG_RTOR2");
+        default:                      return F("?");
+    }
+}
+
+void MAX30001::printRegisters(Stream& out)
+{
+    static const uint8_t regs[] = {
+        MAX30001_REG_STATUS, MAX30001_REG_EN_INT, MAX30001_REG_EN_INT2, MAX30001_REG_MNGR_INT,
+        MAX30001_REG_MNGR_DYN, MAX30001_REG_INFO, MAX30001_REG_CNFG_GEN, MAX30001_REG_CNFG_CAL,
+        MAX30001_REG_CNFG_EMUX, MAX30001_REG_CNFG_ECG, MAX30001_REG_CNFG_BMUX, MAX30001_REG_CNFG_BIOZ,
+        MAX30001_REG_CNFG_BIOZ_LC, MAX30001_REG_CNFG_RTOR1, MAX30001_REG_CNFG_RTOR2,
+    };
+
+    for (uint8_t i = 0; i < sizeof(regs); i++) {
+        uint32_t value;
+        if (regs[i] == MAX30001_REG_STATUS) {
+            _readStatus();
+            value = global_status.all;
+        } else {
+            _max30001RegRead24(regs[i], &value);
+        }
+
+        out.print(F("0x"));
+        if (regs[i] < 0x10) out.print('0');
+        out.print(regs[i], HEX);
+        out.print(' ');
+        out.print(registerName(regs[i]));
+        out.print(F(" = 0x"));
+        for (int8_t shift = 20; shift >= 0; shift -= 4) {
+            out.print((value >> shift) & 0x0F, HEX);
+        }
+        out.println();
+    }
+}
+
 uint16_t MAX30001::getSampleDelayMs() const
 {
     return _getSampleDelayMs(_sample_rate);
@@ -935,7 +1482,9 @@ void MAX30001::readStatus(void)
 
 void MAX30001::_readStatus(void)
 {
+    // Reading STATUS clears the latched flags, so keep them for getStatus()
     _max30001RegRead24(MAX30001_REG_STATUS, &global_status.all);
+    _status_latched |= global_status.all;
 }
 
 void MAX30001::_max30001ReadECGFIFO(int num_bytes)
