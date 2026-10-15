@@ -239,8 +239,12 @@ Settings are kept and applied on every BioZ start; they also apply immediately w
 | 03 | `03.LeadOffDetection` | Report which electrode is off |
 | 04 | `04.InterruptDriven` | Read the FIFOs in batches on the INTB interrupt |
 | 05 | `05.AdvancedConfig` | Change gain, filters and channels at runtime (512 SPS) |
+| 06 | `06.RespirationBioZ` | Respiration in ohms in the Serial Plotter, with a total-impedance check and clipping flag |
+| 07 | `07.BioZSelfTest` | Self-test with the built-in BioZ test resistor and ECG calibration signal, no person needed |
+| 08 | `08.Diagnostics` | Chip ID, register dump, sample rates, status flags and electrode impedance. Run this first if something is wrong |
+| 09 | `09.ECGSerialPlotter` | ECG in microvolts in the Serial Plotter, with a lead-off flag |
 
-Examples 02–05 print at **115200 baud**. Example 01 streams binary packets at **115200 baud**.
+Examples 02–09 print at **115200 baud**. Example 01 streams binary packets at **115200 baud**.
 
 `scripts/upload_uno_r4.sh [example] [port]` builds and uploads an example to an Uno R4 Minima. `scripts/build.sh [fqbn…]` compiles every example for the CI board list.
 
@@ -255,6 +259,8 @@ The sketch sends one packet per ECG sample (128 per second) at 115200 baud. Each
 This layout is shared with OpenView's `max30001` board descriptor. The sketch prints nothing else, because any text would corrupt the stream.
 
 ## Troubleshooting
+
+Run `08.Diagnostics` first, then `07.BioZSelfTest` to check the board without a person.
 
 **`begin()` returns `MAX30001_ERROR_DEVICE_NOT_FOUND`**
 - Check the CSB/SCLK/MOSI/MISO wiring and VDD/GND.

@@ -30,6 +30,7 @@ All notable changes to this library are documented here. The format follows
 - An optional ECG gain argument on `startECGBioZ()`.
 - `MAX30001_LIBRARY_VERSION` and `getLibraryVersion()`.
 - `MAX30001_REG_*` register names. Define `MAX30001_NO_LEGACY_NAMES` to drop the unprefixed ones (`STATUS`, `INFO`, ...).
+- Examples `06.RespirationBioZ`, `07.BioZSelfTest`, `08.Diagnostics` and `09.ECGSerialPlotter`.
 - `keywords.txt`, `scripts/build.sh`, `scripts/upload_uno_r4.sh`.
 
 ### Changed
