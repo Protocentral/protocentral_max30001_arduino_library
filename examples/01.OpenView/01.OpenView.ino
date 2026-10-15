@@ -17,7 +17,7 @@
  *   (all little-endian; BioZ runs at 64 SPS, so each BioZ value is sent twice)
  *
  * This sketch prints nothing but packets - any other text would corrupt the stream.
- * If the MAX30001 is not found, the built-in LED blinks.
+ * If the MAX30001 is not found, the built-in LED blinks (on boards that have one).
  *
  * This software is licensed under the MIT License.
  */
