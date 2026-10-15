@@ -14,12 +14,13 @@
  * - Lead-off detection
  * - FIFO management
  *
+ * It runs at 512 SPS, the only rate where all three low-pass options
+ * (40, 100, 150 Hz) are available.
+ *
  * This software is licensed under the MIT License.
  */
 
 //////////////////////////////////////////////////////////////////////////////////////////
-//
-//    - Interrupt control
 //
 //    Hardware Setup:
 //      Arduino Uno/Mega:
@@ -51,6 +52,16 @@ max30001_ecg_gain_t current_gain = MAX30001_ECG_GAIN_80;
 uint32_t config_change_time = 0;
 uint32_t last_status_time = 0;
 
+// Gain setting in V/V, for display
+uint16_t gainToVV(max30001_ecg_gain_t gain) {
+    switch (gain) {
+        case MAX30001_ECG_GAIN_20: return 20;
+        case MAX30001_ECG_GAIN_40: return 40;
+        case MAX30001_ECG_GAIN_160: return 160;
+        default: return 80;
+    }
+}
+
 // Constants for timing
 #define CONFIG_CHANGE_INTERVAL 5000   // Change config every 5 seconds
 #define STATUS_REPORT_INTERVAL 1000   // Report status every 1 second
@@ -61,93 +72,80 @@ void setup() {
         delay(10);
     }
     
-    Serial.println("\n===============================================");
-    Serial.println("   MAX30001 Advanced Configuration Demo");
-    Serial.println("===============================================\n");
+    Serial.println(F("\n==============================================="));
+    Serial.println(F("   MAX30001 Advanced Configuration Demo"));
+    Serial.println(F("===============================================\n"));
     
-    // Initialize SPI
-    SPI.begin();
-    
-    Serial.println("Initializing MAX30001...");
+    Serial.println(F("Initializing MAX30001..."));
     
     // Initialize the sensor
     max30001_error_t result = ecgSensor.begin();
     if (result != MAX30001_SUCCESS) {
-        Serial.print("✗ Failed to initialize MAX30001. Error code: ");
+        Serial.print(F("✗ Failed to initialize MAX30001. Error code: "));
         Serial.println(result);
         while (1) {
             delay(1000);
         }
     }
-    Serial.println("✓ MAX30001 initialized successfully\n");
-    
-    // Check connection
-    if (!ecgSensor.isConnected()) {
-        Serial.println("✗ Device not responding on SPI bus");
-        while (1) {
-            delay(1000);
-        }
-    }
-    Serial.println("✓ Device connected\n");
+    Serial.println(F("✓ MAX30001 initialized successfully\n"));
     
     // Get device info
     max30001_device_info_t deviceInfo;
     ecgSensor.getDeviceInfo(&deviceInfo);
-    Serial.print("Device: Part ID = 0x");
+    Serial.print(F("Device: Part ID = 0x"));
     Serial.print(deviceInfo.part_id, HEX);
-    Serial.print(", Revision = 0x");
+    Serial.print(F(", Revision = 0x"));
     Serial.println(deviceInfo.revision, HEX);
     
     // Start ECG acquisition
-    Serial.println("\nStarting ECG with advanced configuration options...");
-    result = ecgSensor.startECG(MAX30001_RATE_128, MAX30001_ECG_GAIN_80);
+    Serial.println(F("\nStarting ECG with advanced configuration options..."));
+    result = ecgSensor.startECG(MAX30001_RATE_512, MAX30001_ECG_GAIN_80);
     if (result != MAX30001_SUCCESS) {
-        Serial.print("✗ Failed to start ECG. Error code: ");
+        Serial.print(F("✗ Failed to start ECG. Error code: "));
         Serial.println(result);
         while (1) {
             delay(1000);
         }
     }
-    Serial.println("✓ ECG started\n");
+    Serial.println(F("✓ ECG started\n"));
     
     // Configure filters
-    Serial.println("Configuring filters:");
+    Serial.println(F("Configuring filters:"));
     ecgSensor.setECGHighPassFilter(0.5);  // 0.5 Hz high-pass
-    Serial.println("  - High-pass: 0.5 Hz");
+    Serial.println(F("  - High-pass: 0.5 Hz"));
     
     ecgSensor.setECGLowPassFilter(40);    // 40 Hz low-pass
-    Serial.println("  - Low-pass: 40 Hz");
+    Serial.println(F("  - Low-pass: 40 Hz"));
     
     config_change_time = millis();
     last_status_time = millis();
     
-    Serial.println("\n--- Starting demo (configs change every 5 seconds) ---\n");
+    Serial.println(F("\n--- Starting demo (configs change every 5 seconds) ---\n"));
 }
 
 void loop() {
     uint32_t now = millis();
     
-    // Get ECG sample
+    // Drain the ECG FIFO, keeping the newest sample
     max30001_ecg_sample_t ecgSample;
-    max30001_error_t result = ecgSensor.getECGSample(&ecgSample);
+    static int32_t last_ecg = 0;
     
-    if (result == MAX30001_SUCCESS && ecgSample.sample_valid) {
-        // Convert to microvolts
-        float ecg_mv = ecgSensor.convertECGToMicrovolts(ecgSample.ecg_sample, current_gain);
+    while (ecgSensor.getECGSample(&ecgSample) == MAX30001_SUCCESS) {
+        last_ecg = ecgSample.ecg_sample;
+    }
+    
+    // Print occasionally to keep terminal readable
+    if ((now - last_status_time) >= STATUS_REPORT_INTERVAL) {
+        float ecg_uv = ecgSensor.convertECGToMicrovolts(last_ecg, current_gain);
         
-        // Print occasionally to keep terminal readable
-        if ((now - last_status_time) >= STATUS_REPORT_INTERVAL) {
-            Serial.print("ECG: ");
-            Serial.print(ecg_mv, 2);
-            Serial.print(" mV | Gain: ");
-            Serial.print(current_gain);
-            Serial.print(" V/V | FIFO: ");
-            Serial.print(ecgSensor.getFIFOCount());
-            Serial.print(" samples | Lead-off: ");
-            Serial.println(ecgSensor.getLeadOffStatus() ? "YES" : "NO");
-            
-            last_status_time = now;
-        }
+        Serial.print(F("ECG: "));
+        Serial.print(ecg_uv, 1);
+        Serial.print(F(" µV | Gain: "));
+        Serial.print(gainToVV(current_gain));
+        Serial.print(F(" V/V | Lead-off: "));
+        Serial.println(ecgSensor.getLeadOffStatus() ? F("YES") : F("NO"));
+        
+        last_status_time = now;
     }
     
     // Demonstrate runtime configuration changes
@@ -156,7 +154,7 @@ void loop() {
         demonstrateConfigurationChange();
     }
     
-    delay(8);  // ~128 SPS
+    delay(10);
 }
 
 /**
@@ -165,90 +163,88 @@ void loop() {
 void demonstrateConfigurationChange() {
     static uint8_t config_step = 0;
     
-    Serial.println("\n--- Configuration Change ---");
+    Serial.println(F("\n--- Configuration Change ---"));
     
     switch (config_step) {
         case 0:
             // Change gain to 160 V/V
-            Serial.println("Action: Increasing ECG gain to 160 V/V");
+            Serial.println(F("Action: Increasing ECG gain to 160 V/V"));
             if (ecgSensor.setECGGain(MAX30001_ECG_GAIN_160) == MAX30001_SUCCESS) {
                 current_gain = MAX30001_ECG_GAIN_160;
-                Serial.println("✓ Gain changed to 160 V/V");
+                Serial.println(F("✓ Gain changed to 160 V/V"));
             }
             break;
             
         case 1:
             // Change back to 80 V/V
-            Serial.println("Action: Decreasing ECG gain to 80 V/V");
+            Serial.println(F("Action: Decreasing ECG gain to 80 V/V"));
             if (ecgSensor.setECGGain(MAX30001_ECG_GAIN_80) == MAX30001_SUCCESS) {
                 current_gain = MAX30001_ECG_GAIN_80;
-                Serial.println("✓ Gain changed to 80 V/V");
+                Serial.println(F("✓ Gain changed to 80 V/V"));
             }
             break;
             
         case 2:
             // Check and display current configuration
-            Serial.println("Action: Reporting current configuration");
-            Serial.print("  - ECG enabled: ");
-            Serial.println(ecgSensor.isECGEnabled() ? "Yes" : "No");
-            Serial.print("  - BioZ enabled: ");
-            Serial.println(ecgSensor.isBioZEnabled() ? "Yes" : "No");
-            Serial.print("  - Current gain: ");
-            Serial.print(ecgSensor.getECGGain());
-            Serial.println(" V/V");
-            Serial.print("  - Sample rate: ");
+            Serial.println(F("Action: Reporting current configuration"));
+            Serial.print(F("  - ECG enabled: "));
+            Serial.println(ecgSensor.isECGEnabled() ? F("Yes") : F("No"));
+            Serial.print(F("  - BioZ enabled: "));
+            Serial.println(ecgSensor.isBioZEnabled() ? F("Yes") : F("No"));
+            Serial.print(F("  - Current gain: "));
+            Serial.print(gainToVV(ecgSensor.getECGGain()));
+            Serial.println(F(" V/V"));
+            Serial.print(F("  - Sample rate: "));
             Serial.print(ecgSensor.getSampleRate());
-            Serial.println(" SPS");
-            Serial.print("  - Sample delay: ");
-            Serial.print(ecgSensor.getSampleDelayMs());
-            Serial.println(" ms");
+            Serial.println(F(" SPS"));
             break;
             
         case 3:
-            // Change high-pass filter to 1.2 Hz
-            Serial.println("Action: Setting high-pass filter to 1.2 Hz");
-            if (ecgSensor.setECGHighPassFilter(1.2) == MAX30001_SUCCESS) {
-                Serial.println("✓ High-pass filter updated");
+            // Bypass the high-pass filter (DC coupled; the only other option is 0.5 Hz)
+            Serial.println(F("Action: Bypassing the high-pass filter (DC coupled)"));
+            if (ecgSensor.setECGHighPassFilter(0) == MAX30001_SUCCESS) {
+                Serial.println(F("✓ High-pass filter bypassed"));
             }
             break;
             
         case 4:
             // Change low-pass filter to 100 Hz
-            Serial.println("Action: Setting low-pass filter to 100 Hz");
-            if (ecgSensor.setECGLowPassFilter(100) == MAX30001_SUCCESS) {
-                Serial.println("✓ Low-pass filter updated");
+            Serial.println(F("Action: Setting low-pass filter to 100 Hz, high-pass back to 0.5 Hz"));
+            if (ecgSensor.setECGLowPassFilter(100) == MAX30001_SUCCESS &&
+                ecgSensor.setECGHighPassFilter(0.5) == MAX30001_SUCCESS) {
+                Serial.println(F("✓ Filters updated"));
             }
             break;
             
         case 5:
             // Disable ECG temporarily
-            Serial.println("Action: Temporarily disabling ECG");
+            Serial.println(F("Action: Temporarily disabling ECG"));
             if (ecgSensor.disableECG() == MAX30001_SUCCESS) {
-                Serial.println("✓ ECG disabled");
+                Serial.println(F("✓ ECG disabled"));
             }
             break;
             
         case 6:
             // Re-enable ECG
-            Serial.println("Action: Re-enabling ECG");
+            Serial.println(F("Action: Re-enabling ECG"));
             if (ecgSensor.enableECG() == MAX30001_SUCCESS) {
-                Serial.println("✓ ECG re-enabled");
+                Serial.println(F("✓ ECG re-enabled"));
             }
             break;
             
         case 7:
             // Clear FIFO
-            Serial.println("Action: Clearing FIFO buffer");
+            Serial.println(F("Action: Clearing FIFO buffer"));
             if (ecgSensor.clearFIFO() == MAX30001_SUCCESS) {
-                Serial.println("✓ FIFO cleared");
+                Serial.println(F("✓ FIFO cleared"));
             }
             break;
             
         case 8:
             // Get last error
-            Serial.println("Action: Getting last error status");
+            Serial.println(F("Action: Getting last error status"));
             max30001_error_t last_error = ecgSensor.getLastError();
-            Serial.print("  - Last error code: ");
+            Serial.print(F("  - Last error code: "));
             Serial.println(last_error);
             break;
     }
